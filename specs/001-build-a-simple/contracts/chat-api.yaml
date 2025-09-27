@@ -1,0 +1,278 @@
+openapi: 3.0.3
+info:
+  title: Chat API
+  description: API for AI-powered customer chat sessions in churn prevention POC
+  version: 1.0.0
+
+paths:
+  /api/chat/sessions:
+    post:
+      summary: Initiate new chat session
+      description: Starts AI conversation with at-risk customer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                customerId:
+                  type: string
+                  example: "cust_12345"
+                adminUserId:
+                  type: string
+                  example: "admin_001"
+              required:
+                - customerId
+                - adminUserId
+      responses:
+        '201':
+          description: Chat session created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatSession'
+        '400':
+          description: Invalid request or customer not at-risk
+        '409':
+          description: Customer already has active chat session
+
+  /api/chat/sessions/{sessionId}:
+    get:
+      summary: Get chat session details
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Chat session retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatSession'
+        '404':
+          description: Session not found
+
+    patch:
+      summary: Update chat session status
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [initiated, in-progress, payment-requested, payment-processing, completed, abandoned]
+                outcome:
+                  type: string
+                  enum: [payment-updated, customer-declined, technical-failure, abandoned]
+              anyOf:
+                - required: [status]
+                - required: [outcome]
+      responses:
+        '200':
+          description: Session updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatSession'
+        '400':
+          description: Invalid status transition
+
+  /api/chat/sessions/{sessionId}/messages:
+    get:
+      summary: Get chat conversation history
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        '200':
+          description: Messages retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ChatMessage'
+
+    post:
+      summary: Send message in chat session
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sender:
+                  type: string
+                  enum: [ai, customer]
+                content:
+                  type: string
+                  maxLength: 1000
+                messageType:
+                  type: string
+                  enum: [greeting, question, payment-request, confirmation, error]
+              required:
+                - sender
+                - content
+                - messageType
+      responses:
+        '201':
+          description: Message sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatMessage'
+        '400':
+          description: Invalid message or session not active
+
+  /api/chat/ai-response:
+    post:
+      summary: Generate AI response for customer message
+      description: Processes customer input and returns natural AI response
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sessionId:
+                  type: string
+                customerMessage:
+                  type: string
+                  maxLength: 1000
+                conversationContext:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/ChatMessage'
+                  maxItems: 10
+              required:
+                - sessionId
+                - customerMessage
+      responses:
+        '200':
+          description: AI response generated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  response:
+                    type: string
+                    description: Natural language AI response
+                  messageType:
+                    type: string
+                    enum: [greeting, question, payment-request, confirmation, error]
+                  suggestedAction:
+                    type: string
+                    enum: [continue-conversation, request-payment, end-session]
+                    nullable: true
+        '400':
+          description: Invalid input or session not active
+
+components:
+  schemas:
+    ChatSession:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "session_abc123"
+        customerId:
+          type: string
+          example: "cust_12345"
+        adminUserId:
+          type: string
+          example: "admin_001"
+        status:
+          type: string
+          enum: [initiated, in-progress, payment-requested, payment-processing, completed, abandoned]
+          example: "in-progress"
+        startTime:
+          type: string
+          format: date-time
+          example: "2025-09-27T14:30:00Z"
+        endTime:
+          type: string
+          format: date-time
+          nullable: true
+        outcome:
+          type: string
+          enum: [payment-updated, customer-declined, technical-failure, abandoned]
+          nullable: true
+        paymentAttempted:
+          type: boolean
+          example: false
+        resolutionTime:
+          type: integer
+          description: Duration in seconds (max 180 per constitution)
+          maximum: 180
+          nullable: true
+      required:
+        - id
+        - customerId
+        - adminUserId
+        - status
+        - startTime
+        - paymentAttempted
+
+    ChatMessage:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "msg_xyz789"
+        chatSessionId:
+          type: string
+          example: "session_abc123"
+        sender:
+          type: string
+          enum: [ai, customer]
+          example: "ai"
+        content:
+          type: string
+          example: "Hi Sarah! I noticed your card ending in 4242 expires next month. I'm here to help you update it quickly."
+        timestamp:
+          type: string
+          format: date-time
+          example: "2025-09-27T14:31:15Z"
+        messageType:
+          type: string
+          enum: [greeting, question, payment-request, confirmation, error]
+          example: "greeting"
+      required:
+        - id
+        - chatSessionId
+        - sender
+        - content
+        - timestamp
+        - messageType

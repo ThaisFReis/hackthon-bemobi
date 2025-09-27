@@ -1,50 +1,65 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+<!--
+Sync Impact Report:
+Version change: N/A → 1.0.0
+Modified principles: All principles are new (initial constitution)
+Added sections: Core Principles (5 principles), POC Development Guidelines, Demo Requirements, Governance
+Removed sections: None (new constitution)
+Templates requiring updates:
+  ✅ .specify/templates/plan-template.md - constitution check aligned
+  ✅ .specify/templates/spec-template.md - requirement types compatible
+  ✅ .specify/templates/tasks-template.md - task categorization compatible
+Follow-up TODOs: None
+-->
+
+# Bemobi POC Constitution
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. Working Payment Integration (NON-NEGOTIABLE)
+Payment processing MUST be functional in test mode before any other features. All payment flows MUST be demonstrable with real API calls using test credentials. Mock payments are forbidden - integration with actual payment providers (Stripe test mode, PayPal sandbox) is mandatory. Payment failure scenarios MUST be handled gracefully with clear user feedback.
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+**Rationale**: Payment functionality is the core value proposition and cannot be simulated for credible demonstration.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+### II. Natural Conversation Flow
+User interactions MUST feel conversational, not form-based or robotic. Chat interfaces MUST support context awareness, natural language processing, and human-like responses. Avoid rigid command structures, multi-step wizards, or technical jargon in user-facing interactions. Conversations MUST flow naturally with appropriate follow-up questions and confirmations.
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+**Rationale**: Natural conversation distinguishes this POC from traditional interfaces and demonstrates AI-powered engagement value.
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+### III. Demonstrable Churn Prevention
+The demo MUST show measurable value in reducing customer churn within 5 minutes. Include mock but realistic customer data showing before/after metrics, retention rates, or engagement improvements. All claims MUST be backed by visible data or simulated scenarios that would be convincing to stakeholders.
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+**Rationale**: Business value must be immediately apparent to justify further investment in the concept.
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+### IV. Functional Core Over Polish
+Prioritize working features over visual design, animations, or advanced UI. Core functionality MUST work end-to-end even if the interface is basic. Focus on MVP features that demonstrate the concept rather than production-ready polish. Technical debt is acceptable if it doesn't impact core demonstration flows.
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+**Rationale**: POC success is measured by concept validation, not production readiness.
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+### V. 5-Minute Demo Constraint
+Every feature MUST contribute to a cohesive 5-minute demonstration. If a feature cannot be shown and explained within the demo timeframe, it should be removed. Demo flow MUST be rehearsable, predictable, and robust under presentation conditions.
+
+**Rationale**: POC effectiveness is constrained by presentation time and attention spans.
+
+## POC Development Guidelines
+
+**Mock Data Requirements**: All demo data MUST appear realistic and relevant to the target market. Use representative customer names, realistic transaction amounts, and believable scenarios. Avoid obviously fake data (e.g., "John Doe", $999999 amounts) that undermines credibility.
+
+**Security in Test Mode**: Payment integrations MUST use official test/sandbox environments only. Never use production credentials or real payment processing. All API keys and credentials MUST be properly configured for development environments with appropriate access restrictions.
+
+**Architecture Simplicity**: Choose simple, well-documented technologies that can be implemented quickly. Prefer monolithic architecture over microservices. Use established frameworks and libraries rather than custom solutions. Database schema should be minimal and focused on demo requirements only.
+
+## Demo Requirements
+
+**Technical Performance**: Demo MUST run reliably on presenter's machine without internet dependencies where possible. Payment API calls should have fallback responses for connectivity issues. All demo paths MUST be tested multiple times before presentation.
+
+**Narrative Flow**: Demo MUST tell a coherent story from problem identification through solution demonstration to measurable outcomes. Each feature shown MUST connect to the overall value proposition. Prepare smooth transitions between demo segments.
+
+**Stakeholder Focus**: Demo content MUST be tailored for business stakeholders, not technical audiences. Emphasize business metrics, user experience improvements, and ROI potential rather than technical implementation details.
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+This constitution supersedes all other development practices during POC development. All code reviews and feature decisions MUST verify compliance with these principles. Complexity MUST be justified against the 5-minute demo constraint.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+Any team member MAY propose amendments through documentation and team approval. All amendments require migration plan for existing features to maintain constitutional compliance.
+
+**Version**: 1.0.0 | **Ratified**: 2025-09-27 | **Last Amended**: 2025-09-27

@@ -1,0 +1,210 @@
+openapi: 3.0.3
+info:
+  title: Customers API
+  description: API for managing at-risk customers in churn prevention POC
+  version: 1.0.0
+
+paths:
+  /api/customers:
+    get:
+      summary: Get list of at-risk customers
+      description: Returns customers with payment issues requiring intervention
+      parameters:
+        - name: riskCategory
+          in: query
+          schema:
+            type: string
+            enum: [expiring-card, failed-payment]
+          description: Filter by specific risk type
+        - name: riskSeverity
+          in: query
+          schema:
+            type: string
+            enum: [low, medium, high]
+          description: Filter by risk severity level
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  customers:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Customer'
+                  totalCount:
+                    type: integer
+                    description: Total number of at-risk customers
+
+  /api/customers/{customerId}:
+    get:
+      summary: Get specific customer details
+      parameters:
+        - name: customerId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Customer found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Customer'
+        '404':
+          description: Customer not found
+
+    patch:
+      summary: Update customer status
+      parameters:
+        - name: customerId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                accountStatus:
+                  type: string
+                  enum: [active, at-risk, resolved, churned]
+              required:
+                - accountStatus
+      responses:
+        '200':
+          description: Customer status updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Customer'
+        '400':
+          description: Invalid status transition
+        '404':
+          description: Customer not found
+
+  /api/customers/{customerId}/payment-methods:
+    get:
+      summary: Get customer payment methods
+      parameters:
+        - name: customerId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Payment methods retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PaymentMethod'
+
+components:
+  schemas:
+    Customer:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "cust_12345"
+        name:
+          type: string
+          example: "Sarah Johnson"
+        email:
+          type: string
+          format: email
+          example: "sarah.johnson@email.com"
+        phone:
+          type: string
+          example: "+1-555-0123"
+        accountStatus:
+          type: string
+          enum: [active, at-risk, resolved, churned]
+          example: "at-risk"
+        riskCategory:
+          type: string
+          enum: [expiring-card, failed-payment]
+          example: "expiring-card"
+        riskSeverity:
+          type: string
+          enum: [low, medium, high]
+          example: "medium"
+        lastPaymentDate:
+          type: string
+          format: date
+          example: "2025-08-15"
+        accountValue:
+          type: number
+          format: float
+          example: 49.99
+        customerSince:
+          type: string
+          format: date
+          example: "2023-01-15"
+      required:
+        - id
+        - name
+        - email
+        - accountStatus
+        - riskCategory
+        - accountValue
+
+    PaymentMethod:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "pm_67890"
+        customerId:
+          type: string
+          example: "cust_12345"
+        cardType:
+          type: string
+          enum: [visa, mastercard, amex, discover]
+          example: "visa"
+        lastFourDigits:
+          type: string
+          pattern: '^[0-9]{4}$'
+          example: "4242"
+        expiryMonth:
+          type: integer
+          minimum: 1
+          maximum: 12
+          example: 10
+        expiryYear:
+          type: integer
+          minimum: 2025
+          example: 2025
+        status:
+          type: string
+          enum: [active, expired, failed, invalid]
+          example: "expired"
+        failureCount:
+          type: integer
+          minimum: 0
+          example: 0
+        lastFailureDate:
+          type: string
+          format: date-time
+          nullable: true
+        lastSuccessDate:
+          type: string
+          format: date-time
+          example: "2025-08-15T10:30:00Z"
+      required:
+        - id
+        - customerId
+        - cardType
+        - lastFourDigits
+        - expiryMonth
+        - expiryYear
+        - status
