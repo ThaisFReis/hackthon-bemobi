@@ -118,7 +118,7 @@ export class AIChatService {
           {
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${geminiApiKey}`
+              'x-goog-api-key': geminiApiKey
             }
           }
         );
@@ -201,7 +201,7 @@ export class AIChatService {
           {
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${geminiApiKey}`
+              'x-goog-api-key': geminiApiKey
             }
           }
         );
@@ -349,7 +349,7 @@ export class AIChatService {
             {
               headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${geminiApiKey}`
+                'x-goog-api-key': geminiApiKey
               }
             }
           );
