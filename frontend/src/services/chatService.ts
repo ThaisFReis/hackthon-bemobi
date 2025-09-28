@@ -1,38 +1,37 @@
+import { io, Socket } from 'socket.io-client';
 import { ChatMessage } from '../types/chatMessage';
 
 class ChatService {
-  private socket: WebSocket | null = null;
+  private socket: Socket | null = null;
 
   connect(sessionId: string) {
-    this.socket = new WebSocket(`https://gemini-churn-prevention.vercel.app/chat/${sessionId}`);
+    this.socket = io('https://hackthon-bemobi-1.onrender.com');
 
-    this.socket.onopen = () => {
-      console.log('WebSocket connected');
-    };
+    this.socket.on('connect', () => {
+      console.log('Socket.IO connected');
+      this.socket?.emit('join-chat', sessionId);
+    });
 
-    this.socket.onclose = () => {
-      console.log('WebSocket disconnected');
-    };
+    this.socket.on('disconnect', () => {
+      console.log('Socket.IO disconnected');
+    });
   }
 
   disconnect() {
     if (this.socket) {
-      this.socket.close();
+      this.socket.disconnect();
     }
   }
 
   sendMessage(message: ChatMessage) {
-    if (this.socket && this.socket.readyState === WebSocket.OPEN) {
-      this.socket.send(JSON.stringify(message));
+    if (this.socket && this.socket.connected) {
+      this.socket.emit('send-message', message);
     }
   }
 
   onMessage(callback: (message: ChatMessage) => void) {
     if (this.socket) {
-      this.socket.onmessage = (event) => {
-        const message = JSON.parse(event.data);
-        callback(message);
-      };
+      this.socket.on('receive-message', callback);
     }
   }
 }
