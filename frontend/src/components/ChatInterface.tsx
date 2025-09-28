@@ -88,7 +88,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, customerId, cu
     setInput('');
 
     try {
-      const response = await fetch('http://localhost:3001/api/chat/send-message', {
+      const response = await fetch('https://hackthon-bemobi-1.onrender.com/api/chat/send-message', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sessionId, content: messageContent, sender: 'customer' }),
@@ -116,7 +116,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, customerId, cu
     try {
       const processingTime = { 'pix': 2000, 'credit': 3000, 'boleto': 1500 };
       await new Promise(resolve => setTimeout(resolve, processingTime[method]));
-      const response = await fetch('http://localhost:3001/api/payments/simulate-chat-payment', {
+      const response = await fetch('https://hackthon-bemobi-1.onrender.com/api/payments/simulate-chat-payment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sessionId, customerId, paymentMethod: method }),
