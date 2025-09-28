@@ -23,6 +23,8 @@ import chatRoutes from './api/chat';
 import customerRoutes from './api/customers';
 import queueRoutes from './api/queue';
 import paymentRoutes from './api/payments';
+import langsmithRoutes from './api/langsmith';
+import analyticsRoutes from './api/analytics';
 import { QueueService } from './services/queueService';
 import { LangchainGeminiService } from './services/langchainGeminiService';
 
@@ -75,6 +77,8 @@ app.use('/api/chat', chatRoutes);
 app.use('/api/customers', customerRoutes);
 app.use('/api/queue', queueRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/langsmith', langsmithRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
 // Connect queue service to Socket.io for real-time events
 queueService.setEventEmitter((event: string, data: any) => {
