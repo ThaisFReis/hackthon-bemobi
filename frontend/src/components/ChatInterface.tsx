@@ -26,7 +26,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, customerId, cu
   }, [messages]);
 
   useEffect(() => {
-    socketRef.current = io('http://localhost:3001');
+    socketRef.current = io('https://hackthon-bemobi-1.onrender.com');
     socketRef.current.on('connect', () => {
       console.log('Connected to server');
       setConnected(true);
@@ -64,7 +64,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, customerId, cu
 
     const fetchChatSession = async () => {
       try {
-        const response = await fetch(`http://localhost:3001/api/chat/sessions/${sessionId}`);
+        const response = await fetch(`https://hackthon-bemobi-1.onrender.com/api/chat/sessions/${sessionId}`);
         if (response.ok) {
           const sessionData = await response.json();
           if (sessionData.messages && sessionData.messages.length > 0) {
