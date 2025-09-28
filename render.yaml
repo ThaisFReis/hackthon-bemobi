@@ -1,14 +1,15 @@
 services:
   - type: web
     name: poc-bemobi-backend
-    runtime: docker
-    dockerfilePath: ./backend/Dockerfile
+    runtime: node
+    buildCommand: "cd backend && npm install && npm run build"
+    startCommand: "cd backend && npm start"
     plan: starter
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
-        value: 3001
+        value: 10000
       - key: CORS_ORIGIN
         fromSecret: cors-origin
       - key: GEMINI_API_KEY

@@ -4,8 +4,8 @@
   "description": "AI Churn Prevention POC Backend - Node.js/Express API with Stripe integration",
   "main": "dist/server.js",
   "scripts": {
-    "build": "tsc",
-    "start": "node dist/server.js",
+    "build": "prisma generate && tsc",
+    "start": "./start.sh",
     "dev": "tsx watch src/server.ts",
     "test": "jest",
     "test:watch": "jest --watch",
