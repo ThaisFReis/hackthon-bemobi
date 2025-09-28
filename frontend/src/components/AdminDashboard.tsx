@@ -12,7 +12,7 @@ const AdminDashboard: React.FC = () => {
   useEffect(() => {
     const fetchCustomers = async () => {
       try {
-        const response = await fetch('http://localhost:3001/api/customers');
+        const response = await fetch('https://hackthon-bemobi-1.onrender.com/api/customers');
         const data = await response.json();
         setCustomers(data.filter((c: Customer) => c.accountStatus === 'at-risk'));
       } catch (error) {
