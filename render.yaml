@@ -1,0 +1,61 @@
+services:
+  - type: web
+    name: poc-bemobi-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    plan: starter
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3001
+      - key: CORS_ORIGIN
+        fromSecret: cors-origin
+      - key: GEMINI_API_KEY
+        fromSecret: gemini-api-key
+      - key: LANGCHAIN_TRACING_V2
+        value: true
+      - key: LANGCHAIN_API_KEY
+        fromSecret: langchain-api-key
+      - key: LANGCHAIN_PROJECT
+        value: gemini-churn-prevention
+      - key: LANGCHAIN_ENDPOINT
+        value: https://api.smith.langchain.com
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: JWT_SECRET
+        generateValue: true
+      - key: LOG_LEVEL
+        value: info
+      - key: LOG_FORMAT
+        value: combined
+      - key: DEMO_MODE
+        value: false
+      - key: CONVERSATION_TIMEOUT_SECONDS
+        value: 180
+      - key: API_TIMEOUT_MS
+        value: 5000
+      - key: MAX_CONCURRENT_CHATS
+        value: 10
+      - key: SOCKET_IO_CORS
+        fromSecret: cors-origin
+      - key: HOT_RELOAD
+        value: false
+      - key: DEBUG_MODE
+        value: false
+      - key: ENABLE_SWAGGER
+        value: false
+      - key: DATABASE_URL
+        fromDatabase:
+          name: poc-bemobi-db
+          property: connectionString
+      - key: DIRECT_URL
+        fromDatabase:
+          name: poc-bemobi-db
+          property: connectionString
+
+databases:
+  - name: poc-bemobi-db
+    databaseName: poc_bemobi
+    user: poc_bemobi_user
+    plan: starter
