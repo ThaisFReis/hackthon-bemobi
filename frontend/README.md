@@ -36,7 +36,7 @@ npm run build        # Build for production
 npm run preview      # Preview production build
 ```
 
-The application will start on `http://localhost:3000`
+The application will start on `https://hackthon-bemobi-1.onrender.com0`
 
 ## 🧪 Testing
 
@@ -192,8 +192,8 @@ xl: 1280px  /* Extra large devices */
 ### Environment Variables
 Create `.env.local` for local development:
 ```bash
-VITE_API_URL=http://localhost:3001
-VITE_SOCKET_URL=http://localhost:3001
+VITE_API_URL=https://hackthon-bemobi-1.onrender.com1
+VITE_SOCKET_URL=https://hackthon-bemobi-1.onrender.com1
 ```
 
 ### Vite Configuration

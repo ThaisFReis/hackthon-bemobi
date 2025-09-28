@@ -121,7 +121,7 @@ router.post('/simulate-chat-payment', async (req, res) => {
     if (chatSession) {
       try {
         // Call the chat API to generate AI follow-up message
-        const response = await fetch('http://localhost:3001/api/chat/payment-confirmed', {
+        const response = await fetch('https://hackthon-bemobi-1.onrender.com1/api/chat/payment-confirmed', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

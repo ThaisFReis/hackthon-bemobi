@@ -34,7 +34,7 @@ cp backend/.env.example backend/.env
 # Start both backend and frontend in development mode
 npm run dev
 ```
-The backend will be running on `http://localhost:3001` and the frontend on `http://localhost:3000`.
+The backend will be running on `https://hackthon-bemobi-1.onrender.com1` and the frontend on `https://hackthon-bemobi-1.onrender.com0`.
 
 ### Testing
 ```bash
@@ -47,7 +47,7 @@ npm run format      # Format all code
 
 ### Scenario 1: Expired Card Customer (2 minutes)
 1. **Open Admin Dashboard**
-   - Navigate to `http://localhost:3000/admin`
+   - Navigate to `https://hackthon-bemobi-1.onrender.com0/admin`
    - View list of at-risk customers
    - Locate "Sarah Johnson" with expired card (expires 10/2025)
 

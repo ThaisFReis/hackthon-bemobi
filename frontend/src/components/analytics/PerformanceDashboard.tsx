@@ -78,7 +78,7 @@ const PerformanceDashboard: React.FC = () => {
     }, 30000);
 
     // Set up Server-Sent Events for real-time monitoring
-    const eventSource = new EventSource('http://localhost:3001/api/analytics/monitor/subscribe');
+    const eventSource = new EventSource('https://hackthon-bemobi-1.onrender.com1/api/analytics/monitor/subscribe');
 
     eventSource.onmessage = (event) => {
       try {
@@ -123,7 +123,7 @@ const PerformanceDashboard: React.FC = () => {
       }
 
       const response = await fetch(
-        `http://localhost:3001/api/analytics/performance?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}&granularity=day`
+        `https://hackthon-bemobi-1.onrender.com1/api/analytics/performance?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}&granularity=day`
       );
 
       if (response.ok) {
@@ -137,7 +137,7 @@ const PerformanceDashboard: React.FC = () => {
 
   const fetchRealTimeData = async () => {
     try {
-      const response = await fetch('http://localhost:3001/api/analytics/realtime');
+      const response = await fetch('https://hackthon-bemobi-1.onrender.com1/api/analytics/realtime');
       if (response.ok) {
         const data = await response.json();
         setRealTimeData(data.data);
@@ -151,7 +151,7 @@ const PerformanceDashboard: React.FC = () => {
 
   const fetchRealtimePatterns = async () => {
     try {
-      const response = await fetch('http://localhost:3001/api/analytics/patterns/realtime');
+      const response = await fetch('https://hackthon-bemobi-1.onrender.com1/api/analytics/patterns/realtime');
       if (response.ok) {
         const data = await response.json();
         setRealtimePatterns(data.data);

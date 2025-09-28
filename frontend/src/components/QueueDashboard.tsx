@@ -14,7 +14,7 @@ const QueueDashboard: React.FC = () => {
 
   useEffect(() => {
     // Initialize socket connection
-    const socketInstance = io('http://localhost:3001');
+    const socketInstance = io('https://hackthon-bemobi-1.onrender.com1');
 
     socketInstance.on('connect', () => {
       console.log('Connected to queue monitoring');
@@ -43,7 +43,7 @@ const QueueDashboard: React.FC = () => {
 
   const fetchQueueStatus = async () => {
     try {
-      const response = await fetch('http://localhost:3001/api/queue/status');
+      const response = await fetch('https://hackthon-bemobi-1.onrender.com1/api/queue/status');
       if (response.ok) {
         const status = await response.json();
         setQueueStatus(status);
@@ -56,7 +56,7 @@ const QueueDashboard: React.FC = () => {
 
   const handleStartAutonomous = async () => {
     try {
-      const response = await fetch('http://localhost:3001/api/queue/start', {
+      const response = await fetch('https://hackthon-bemobi-1.onrender.com1/api/queue/start', {
         method: 'POST',
       });
       if (response.ok) {
@@ -69,7 +69,7 @@ const QueueDashboard: React.FC = () => {
 
   const handleStopAutonomous = async () => {
     try {
-      const response = await fetch('http://localhost:3001/api/queue/stop', {
+      const response = await fetch('https://hackthon-bemobi-1.onrender.com1/api/queue/stop', {
         method: 'POST',
       });
       if (response.ok) {
@@ -82,7 +82,7 @@ const QueueDashboard: React.FC = () => {
 
   const handleRefreshQueue = async () => {
     try {
-      const response = await fetch('http://localhost:3001/api/queue/refresh', {
+      const response = await fetch('https://hackthon-bemobi-1.onrender.com1/api/queue/refresh', {
         method: 'POST',
       });
       if (response.ok) {
@@ -97,7 +97,7 @@ const QueueDashboard: React.FC = () => {
     if (!tempConfig) return;
 
     try {
-      const response = await fetch('http://localhost:3001/api/queue/config', {
+      const response = await fetch('https://hackthon-bemobi-1.onrender.com1/api/queue/config', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -115,7 +115,7 @@ const QueueDashboard: React.FC = () => {
 
   const handleRemoveFromQueue = async (customerId: string) => {
     try {
-      const response = await fetch(`http://localhost:3001/api/queue/remove-customer/${customerId}`, {
+      const response = await fetch(`https://hackthon-bemobi-1.onrender.com1/api/queue/remove-customer/${customerId}`, {
         method: 'DELETE',
       });
       if (response.ok) {

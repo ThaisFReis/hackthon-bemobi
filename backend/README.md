@@ -40,7 +40,7 @@ PORT=3001
 NODE_ENV=development
 OPENAI_API_KEY=your_openai_api_key_here
 STRIPE_SECRET_KEY=your_stripe_secret_key_here
-FRONTEND_URL=http://localhost:3000
+FRONTEND_URL=https://hackthon-bemobi-1.onrender.com0
 ```
 
 ### Development
@@ -50,7 +50,7 @@ npm run build        # Build TypeScript
 npm start            # Start production server
 ```
 
-The server will start on `http://localhost:3001`
+The server will start on `https://hackthon-bemobi-1.onrender.com1`
 
 ## 🧪 Testing
 

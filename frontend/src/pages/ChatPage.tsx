@@ -12,7 +12,7 @@ const ChatPage: React.FC = () => {
       if (!sessionId) return;
 
       try {
-        const response = await fetch(`http://localhost:3001/api/chat/sessions/${sessionId}`);
+        const response = await fetch(`https://hackthon-bemobi-1.onrender.com1/api/chat/sessions/${sessionId}`);
         if (response.ok) {
           const data = await response.json();
           setSessionData(data);

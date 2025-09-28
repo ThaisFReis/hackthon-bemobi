@@ -20,7 +20,7 @@ const CustomerCard: React.FC<CustomerCardProps> = ({ customer, onChatTriggered }
         paymentIssue = 'payment-failure';
       }
 
-      const response = await fetch('http://localhost:3001/api/chat/create-session', {
+      const response = await fetch('https://hackthon-bemobi-1.onrender.com1/api/chat/create-session', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
