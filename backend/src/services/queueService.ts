@@ -7,7 +7,7 @@ import { prisma } from '../lib/prisma';
 import { v4 as uuidv4 } from 'uuid';
 import { paymentTransactionService } from './paymentTransactionService';
 import { contactLogService } from './contactLogService';
-import { Intervention, Customer as PrismaCustomer, RiskFactor, ChatSession as PrismaChatSession, PaymentTransaction } from '@prisma/client';
+import { Intervention, Customer as PrismaCustomer, RiskFactor } from '@prisma/client';
 
 
 // CustomerData interface matching LangchainGeminiService
