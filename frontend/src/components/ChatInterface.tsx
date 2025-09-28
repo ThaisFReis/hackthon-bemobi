@@ -26,6 +26,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, customerId, cu
   }, [messages]);
 
   useEffect(() => {
+    // Updated to use Render backend
     socketRef.current = io('https://hackthon-bemobi-1.onrender.com');
     socketRef.current.on('connect', () => {
       console.log('Connected to server');
