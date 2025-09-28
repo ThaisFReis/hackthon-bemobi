@@ -6,7 +6,7 @@
       "email": "joao.silva@email.com",
       "phone": "+5511999888777",
       "accountStatus": "at-risk",
-      "riskCategory": "expiring-card",
+      "riskCategory": "payment-failed",
       "riskSeverity": "high",
       "lastPaymentDate": "2025-08-15",
       "accountValue": 8990,
@@ -14,18 +14,15 @@
       "serviceProvider": "TIM",
       "serviceType": "Plano Controle 15GB",
       "billingCycle": "monthly",
-      "nextBillingDate": "2025-10-15",
-      "paymentMethod": {
-        "id": "pm_001",
-        "cardType": "visa",
-        "lastFourDigits": "1234",
-        "expiryMonth": 9,
-        "expiryYear": 2025,
-        "status": "expiring_soon",
-        "failureCount": 0,
-        "lastSuccessDate": "2025-08-15"
+      "nextBillingDate": "2025-09-30",
+      "paymentStatus": {
+        "status": "failed",
+        "failureCount": 1,
+        "lastFailureDate": "2025-09-26",
+        "lastSuccessDate": "2025-08-15",
+        "failureReason": "insufficient_funds"
       },
-      "riskFactors": ["card_expires_in_days", "high_value_plan"],
+      "riskFactors": ["payment_failed_once", "high_value_plan"],
       "interventionHistory": []
     },
     {
@@ -46,9 +43,6 @@
       "paymentMethod": {
         "id": "pm_002",
         "cardType": "mastercard",
-        "lastFourDigits": "5678",
-        "expiryMonth": 3,
-        "expiryYear": 2027,
         "status": "failed",
         "failureCount": 2,
         "lastFailureDate": "2025-09-26",
@@ -75,9 +69,6 @@
       "paymentMethod": {
         "id": "pm_003",
         "cardType": "visa",
-        "lastFourDigits": "9876",
-        "expiryMonth": 11,
-        "expiryYear": 2026,
         "status": "blocked",
         "failureCount": 3,
         "lastFailureDate": "2025-09-25",
@@ -98,7 +89,7 @@
       "email": "ana.costa@empresa.com.br",
       "phone": "+5511765432109",
       "accountStatus": "at-risk",
-      "riskCategory": "expiring-card",
+      "riskCategory": "multiple-failures",
       "riskSeverity": "medium",
       "lastPaymentDate": "2025-09-01",
       "accountValue": 4990,
@@ -110,14 +101,12 @@
       "paymentMethod": {
         "id": "pm_004",
         "cardType": "elo",
-        "lastFourDigits": "3456",
-        "expiryMonth": 10,
-        "expiryYear": 2025,
-        "status": "expiring_soon",
-        "failureCount": 0,
+        "status": "failed",
+        "failureCount": 2,
+        "lastFailureDate": "2025-09-26",
         "lastSuccessDate": "2025-09-01"
       },
-      "riskFactors": ["card_expires_next_month", "family_plan"],
+      "riskFactors": ["payment_failed_multiple", "family_plan"],
       "interventionHistory": []
     },
     {
@@ -138,9 +127,6 @@
       "paymentMethod": {
         "id": "pm_005",
         "cardType": "visa",
-        "lastFourDigits": "7890",
-        "expiryMonth": 12,
-        "expiryYear": 2027,
         "status": "active",
         "failureCount": 0,
         "lastSuccessDate": "2025-09-15"
@@ -154,7 +140,7 @@
       "email": "fernanda.lima@startup.tech",
       "phone": "+5511543210987",
       "accountStatus": "at-risk",
-      "riskCategory": "expiring-card",
+      "riskCategory": "multiple-failures",
       "riskSeverity": "medium",
       "lastPaymentDate": "2025-09-10",
       "accountValue": 15990,
@@ -166,14 +152,12 @@
       "paymentMethod": {
         "id": "pm_006",
         "cardType": "mastercard",
-        "lastFourDigits": "2468",
-        "expiryMonth": 10,
-        "expiryYear": 2025,
-        "status": "expiring_soon",
-        "failureCount": 0,
+        "status": "failed",
+        "failureCount": 3,
+        "lastFailureDate": "2025-09-25",
         "lastSuccessDate": "2025-09-10"
       },
-      "riskFactors": ["card_expires_next_month", "premium_plan"],
+      "riskFactors": ["payment_failed_multiple", "premium_plan"],
       "interventionHistory": []
     },
     {
@@ -194,9 +178,6 @@
       "paymentMethod": {
         "id": "pm_007",
         "cardType": "visa",
-        "lastFourDigits": "1357",
-        "expiryMonth": 6,
-        "expiryYear": 2026,
         "status": "failed",
         "failureCount": 1,
         "lastFailureDate": "2025-09-25",
@@ -223,9 +204,6 @@
       "paymentMethod": {
         "id": "pm_008",
         "cardType": "elo",
-        "lastFourDigits": "8024",
-        "expiryMonth": 4,
-        "expiryYear": 2027,
         "status": "failed",
         "failureCount": 3,
         "lastFailureDate": "2025-09-26",
@@ -246,7 +224,7 @@
       "email": "ricardo.almeida@empresafamiliar.com.br",
       "phone": "+5511210987654",
       "accountStatus": "at-risk",
-      "riskCategory": "expiring-card",
+      "riskCategory": "multiple-failures",
       "riskSeverity": "low",
       "lastPaymentDate": "2025-09-20",
       "accountValue": 3490,
@@ -258,14 +236,12 @@
       "paymentMethod": {
         "id": "pm_009",
         "cardType": "visa",
-        "lastFourDigits": "9753",
-        "expiryMonth": 11,
-        "expiryYear": 2025,
-        "status": "expiring_soon",
-        "failureCount": 0,
+        "status": "failed",
+        "failureCount": 2,
+        "lastFailureDate": "2025-09-25",
         "lastSuccessDate": "2025-09-20"
       },
-      "riskFactors": ["card_expires_next_month", "basic_plan"],
+      "riskFactors": ["payment_failed_multiple", "basic_plan"],
       "interventionHistory": []
     },
     {
@@ -286,9 +262,6 @@
       "paymentMethod": {
         "id": "pm_010",
         "cardType": "mastercard",
-        "lastFourDigits": "4681",
-        "expiryMonth": 8,
-        "expiryYear": 2028,
         "status": "active",
         "failureCount": 0,
         "lastSuccessDate": "2025-09-18"
@@ -304,51 +277,274 @@
   },
   "conversationTemplates": {
     "telecom": {
-      "cardExpiring": "Oi {name}! Aqui é da {provider}. Seu cartão {cardMask} vence em {days} dias. Quer atualizar para não perder seu número?",
+      "paymentIssue": "Oi {name}! Aqui é da {provider}. Identificamos problemas no seu pagamento. Vamos resolver para não perder seu número?",
       "paymentFailed": "Oi {name}! O pagamento do seu plano {serviceType} de R$ {value} não foi processado. Vamos resolver para manter sua linha ativa?"
     },
     "utilities": {
-      "cardExpiring": "Oi {name}! Aqui é da {provider}. Seu cartão {cardMask} vence em {days} dias. Quer atualizar para evitar corte de energia?",
+      "paymentIssue": "Oi {name}! Aqui é da {provider}. Identificamos problemas no seu pagamento. Vamos resolver para evitar corte de energia?",
       "paymentFailed": "Oi {name}! Sua conta de luz de R$ {value} não foi paga. Vamos resolver antes do prazo de corte?"
     },
     "education": {
-      "cardExpiring": "Oi {name}! Aqui é da {provider}. Seu cartão {cardMask} vence em {days} dias. Quer atualizar para manter suas aulas em dia?",
+      "paymentIssue": "Oi {name}! Aqui é da {provider}. Identificamos problemas no seu pagamento. Vamos resolver para manter suas aulas em dia?",
       "paymentFailed": "Oi {name}! A mensalidade de R$ {value} não foi processada. Vamos resolver para não afetar seu semestre?"
     }
   },
   "metrics": {
-    "totalCustomers": 5,
-    "atRiskCustomers": 4,
-    "successfulInterventions": 0,
-    "averageResolutionTime": 0,
-    "revenueAtRisk": 172530,
-    "highValueAtRisk": 2,
-    "criticalInterventions": 1,
-    "lastUpdated": "2025-09-27T10:30:00-03:00"
+    "totalCustomers": 10,
+    "atRiskCustomers": 8,
+    "successfulInterventions": 47,
+    "averageResolutionTime": 2.8,
+    "revenueAtRisk": 295770,
+    "revenueRecovered": 158420,
+    "interventionSuccessRate": 73.4,
+    "costPerResolution": 12.50,
+    "avgHumanAgentCost": 85.00,
+    "npsScore": 8.2,
+    "totalInterventions": 64,
+    "lastUpdated": "2025-09-27T14:30:00-03:00"
   },
-  "stripeTestCards": {
-    "working": {
-      "visa": "4242424242424242",
-      "visaDebit": "4000056655665556", 
-      "mastercard": "5555555555554444",
-      "elo": "6362970000457013"
+  "dashboardData": {
+    "performanceMetrics": {
+      "paymentRecoveryRate": 73.4,
+      "averageResolutionTimeMinutes": 2.8,
+      "costPerAgreement": 12.50,
+      "humanAgentCostComparison": 85.00,
+      "customerSatisfactionNPS": 8.2,
+      "totalRevenueRecovered": 158420
     },
-    "declined": {
-      "insufficientFunds": "4000000000009995",
-      "cardDeclined": "4000000000000002"
+    "timeSeriesData": [
+      {
+        "date": "2025-09-20",
+        "interventions": 8,
+        "successful": 6,
+        "avgResolutionTime": 3.2,
+        "revenueRecovered": 18750
+      },
+      {
+        "date": "2025-09-21",
+        "interventions": 12,
+        "successful": 9,
+        "avgResolutionTime": 2.9,
+        "revenueRecovered": 24600
+      },
+      {
+        "date": "2025-09-22",
+        "interventions": 15,
+        "successful": 11,
+        "avgResolutionTime": 2.6,
+        "revenueRecovered": 31200
+      },
+      {
+        "date": "2025-09-23",
+        "interventions": 10,
+        "successful": 7,
+        "avgResolutionTime": 3.1,
+        "revenueRecovered": 22890
+      },
+      {
+        "date": "2025-09-24",
+        "interventions": 11,
+        "successful": 8,
+        "avgResolutionTime": 2.4,
+        "revenueRecovered": 28450
+      },
+      {
+        "date": "2025-09-25",
+        "interventions": 13,
+        "successful": 10,
+        "avgResolutionTime": 2.7,
+        "revenueRecovered": 35280
+      },
+      {
+        "date": "2025-09-26",
+        "interventions": 9,
+        "successful": 6,
+        "avgResolutionTime": 3.0,
+        "revenueRecovered": 19650
+      }
+    ],
+    "heatmapData": [
+      {
+        "region": "SP-Capital",
+        "successRate": 0.82,
+        "interventions": 28,
+        "avgResolutionTime": 2.3,
+        "bestTimeSlot": "14:00-16:00"
+      },
+      {
+        "region": "RJ-Capital",
+        "successRate": 0.75,
+        "interventions": 18,
+        "avgResolutionTime": 2.9,
+        "bestTimeSlot": "10:00-12:00"
+      },
+      {
+        "region": "MG-BH",
+        "successRate": 0.68,
+        "interventions": 12,
+        "avgResolutionTime": 3.4,
+        "bestTimeSlot": "15:00-17:00"
+      },
+      {
+        "region": "PR-Curitiba",
+        "successRate": 0.79,
+        "interventions": 9,
+        "avgResolutionTime": 2.6,
+        "bestTimeSlot": "09:00-11:00"
+      },
+      {
+        "region": "RS-POA",
+        "successRate": 0.71,
+        "interventions": 8,
+        "avgResolutionTime": 3.1,
+        "bestTimeSlot": "13:00-15:00"
+      },
+      {
+        "region": "BA-Salvador",
+        "successRate": 0.65,
+        "interventions": 6,
+        "avgResolutionTime": 3.6,
+        "bestTimeSlot": "11:00-13:00"
+      }
+    ],
+    "verticalPerformance": [
+      {
+        "vertical": "telecom",
+        "successRate": 0.78,
+        "avgResolutionTime": 2.4,
+        "totalRevenue": 67890,
+        "interventions": 34
+      },
+      {
+        "vertical": "utilities",
+        "successRate": 0.85,
+        "avgResolutionTime": 2.1,
+        "totalRevenue": 58760,
+        "interventions": 18
+      },
+      {
+        "vertical": "education",
+        "successRate": 0.69,
+        "avgResolutionTime": 3.5,
+        "totalRevenue": 89650,
+        "interventions": 12
+      }
+    ],
+    "hourlyPerformance": [
+      { "hour": 9, "successRate": 0.68, "interventions": 3 },
+      { "hour": 10, "successRate": 0.75, "interventions": 8 },
+      { "hour": 11, "successRate": 0.82, "interventions": 12 },
+      { "hour": 14, "successRate": 0.79, "interventions": 15 },
+      { "hour": 15, "successRate": 0.85, "interventions": 18 },
+      { "hour": 16, "successRate": 0.71, "interventions": 10 },
+      { "hour": 17, "successRate": 0.66, "interventions": 6 }
+    ]
+  },
+  "langsmithMetrics": {
+    "traceData": [
+      {
+        "traceId": "trace_001",
+        "sessionId": "session_joao_silva",
+        "userId": "cust_001",
+        "startTime": "2025-09-26T14:30:00Z",
+        "endTime": "2025-09-26T14:32:48Z",
+        "totalTokens": 245,
+        "totalCost": 0.0012,
+        "status": "success",
+        "feedback": {
+          "rating": 9,
+          "resolved": true,
+          "customerSatisfaction": "high"
+        },
+        "steps": [
+          {
+            "name": "risk_detection",
+            "latency": 120,
+            "tokens": 45,
+            "cost": 0.0002
+          },
+          {
+            "name": "conversation_ai",
+            "latency": 1500,
+            "tokens": 180,
+            "cost": 0.0008
+          },
+          {
+            "name": "payment_processing",
+            "latency": 800,
+            "tokens": 20,
+            "cost": 0.0002
+          }
+        ]
+      }
+    ],
+    "conversationMetrics": {
+      "avgTokensPerSession": 245,
+      "avgCostPerSession": 0.0012,
+      "avgLatencyMs": 2420,
+      "successfulConversations": 47,
+      "failedConversations": 17,
+      "conversationQuality": {
+        "coherence": 8.7,
+        "relevance": 9.1,
+        "helpfulness": 8.9,
+        "naturalness": 8.5
+      }
+    },
+    "aiPerformanceTracking": {
+      "modelAccuracy": 0.876,
+      "intentClassification": 0.923,
+      "sentimentAnalysis": 0.845,
+      "responseRelevance": 0.891,
+      "conversationCompletion": 0.734
+    },
+    "businessOutcomes": {
+      "churnPrevented": 47,
+      "revenueProtected": 158420,
+      "costSavingsVsHuman": 3400,
+      "customerSatisfactionImprovement": 0.34
     }
   },
-  "businessRules": {
-    "interventionTriggers": {
-      "cardExpiring": "trigger 7 days before expiry",
-      "paymentFailed": "trigger immediately after failure",
-      "multipleFailures": "trigger after 2nd failure"
+  "langsmithDashboards": {
+    "conversationAnalytics": {
+      "title": "AI Agent Conversation Performance",
+      "widgets": [
+        {
+          "type": "success_rate_chart",
+          "data": "conversation success rate over time",
+          "query": "traces.filter(status='success').groupBy(date)"
+        },
+        {
+          "type": "latency_distribution",
+          "data": "response time distribution",
+          "query": "traces.map(endTime - startTime).histogram()"
+        },
+        {
+          "type": "cost_tracking",
+          "data": "AI costs vs human agent costs",
+          "query": "traces.sum(totalCost) vs baseline_human_cost"
+        }
+      ]
     },
-    "prioritization": {
-      "critical": "utilities + multiple failures",
-      "high": "high value + card expiring soon",
-      "medium": "single failure + medium value",
-      "low": "low value + early expiry warning"
+    "businessImpact": {
+      "title": "Churn Prevention Business Metrics",
+      "widgets": [
+        {
+          "type": "revenue_recovery_heatmap",
+          "data": "regional performance heatmap",
+          "query": "traces.groupBy(user.region).map(feedback.resolved)"
+        },
+        {
+          "type": "vertical_performance",
+          "data": "success rate by service vertical",
+          "query": "traces.groupBy(user.serviceProvider.vertical)"
+        },
+        {
+          "type": "roi_calculator",
+          "data": "ROI calculation dashboard",
+          "query": "sum(revenueProtected) / sum(totalCost + operationalCost)"
+        }
+      ]
     }
   }
 }

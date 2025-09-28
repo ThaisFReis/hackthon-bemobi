@@ -23,6 +23,7 @@ Node.js + Express backend API server with TypeScript, Socket.IO for real-time co
 ```bash
 cd backend
 npm install
+npx prisma generate
 ```
 
 ### Environment Setup
