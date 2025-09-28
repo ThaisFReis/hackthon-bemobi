@@ -1,5 +1,4 @@
-s
-clearimport { LangsmithService } from './langsmithService';
+import { LangsmithService } from './langsmithService';
 
 export class MetricsEnrichmentService {
   private langsmithService: LangsmithService;
@@ -86,6 +85,14 @@ export class MetricsEnrichmentService {
       const tokenUsage = await this.langsmithService.getTokenUsageMetrics();
       const qualityMetrics = await this.langsmithService.getQualityMetrics();
       const latencyMetrics = await this.langsmithService.getLatencyByStep();
+      const traces = await this.langsmithService.getConversationTraces(100);
+      
+      // Calculate success rate based on actual trace data
+      const successfulTraces = traces.filter(trace => 
+        trace.status === 'success' || 
+        trace.feedback?.some(f => f.key === 'resolved' && f.value === true)
+      );
+      const successRate = traces.length > 0 ? successfulTraces.length / traces.length : 0;
       
       // Mock NPS data (in a real scenario, this would come from a database)
       const mockNPSData = {
@@ -96,9 +103,6 @@ export class MetricsEnrichmentService {
       // Calculate average latency across all steps
       const totalLatency = latencyMetrics.reduce((sum, metric) => sum + metric.averageLatency, 0);
       const averageLatency = latencyMetrics.length > 0 ? totalLatency / latencyMetrics.length : 0;
-      
-      // Calculate success rate (mock data - in real scenario would be from actual outcomes)
-      const successRate = 0.78; // 78% success rate
       
       // Enrich with cost comparison
       const enrichedData = this.enrichWithHumanCostComparison(tokenUsage);
@@ -129,22 +133,43 @@ export class MetricsEnrichmentService {
       const qualityMetrics = await this.langsmithService.getQualityMetrics();
       const intentMetrics = await this.langsmithService.getIntentClassificationMetrics();
       
-      // Mock success rate trend data (in a real scenario, this would come from historical data)
-      const mockSuccessRateTrend = [
-        { date: '2023-05-01', rate: 0.65 },
-        { date: '2023-05-02', rate: 0.68 },
-        { date: '2023-05-03', rate: 0.72 },
-        { date: '2023-05-04', rate: 0.75 },
-        { date: '2023-05-05', rate: 0.73 },
-        { date: '2023-05-06', rate: 0.77 },
-        { date: '2023-05-07', rate: 0.78 },
-      ];
+      // Get traces from the last 7 days for success rate trend
+      const today = new Date();
+      const successRateTrend = [];
+      
+      // Generate data for the last 7 days
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(today.getDate() - i);
+        const dateString = date.toISOString().split('T')[0];
+        
+        // Get traces for this specific day
+        const startTime = new Date(date);
+        startTime.setHours(0, 0, 0, 0);
+        
+        const endTime = new Date(date);
+        endTime.setHours(23, 59, 59, 999);
+        
+        const traces = await this.langsmithService.getConversationTraces(50, startTime.toISOString(), endTime.toISOString());
+        
+        // Calculate success rate for this day
+        const successfulTraces = traces.filter(trace => 
+          trace.status === 'success' || 
+          trace.feedback?.some(f => f.key === 'resolved' && f.value === true)
+        );
+        const rate = traces.length > 0 ? successfulTraces.length / traces.length : 0;
+        
+        successRateTrend.push({
+          date: dateString,
+          rate: rate
+        });
+      }
       
       return {
         latencyByStep,
         qualityMetrics,
         intentAccuracy: intentMetrics.averageAccuracy * 100, // Convert to percentage
-        successRateTrend: mockSuccessRateTrend.map(item => ({
+        successRateTrend: successRateTrend.map(item => ({
           ...item,
           rate: item.rate * 100, // Convert to percentage
         })),
@@ -163,52 +188,93 @@ export class MetricsEnrichmentService {
     try {
       // Get token usage for cost calculation
       const tokenUsage = await this.langsmithService.getTokenUsageMetrics();
+      const traces = await this.langsmithService.getConversationTraces(200);
       
       // Enrich with cost comparison
       const enrichedData = this.enrichWithHumanCostComparison(tokenUsage);
       
-      // Mock regional data (in a real scenario, this would come from a database)
-      const mockRegionalData = {
-        'São Paulo': { recoveryAmount: 125000, successRate: 0.82 },
-        'Rio de Janeiro': { recoveryAmount: 87000, successRate: 0.76 },
-        'Minas Gerais': { recoveryAmount: 62000, successRate: 0.79 },
-        'Bahia': { recoveryAmount: 45000, successRate: 0.71 },
-        'Rio Grande do Sul': { recoveryAmount: 38000, successRate: 0.74 },
-        'Paraná': { recoveryAmount: 35000, successRate: 0.77 },
-        'Pernambuco': { recoveryAmount: 28000, successRate: 0.69 },
-        'Ceará': { recoveryAmount: 25000, successRate: 0.68 },
-        'Distrito Federal': { recoveryAmount: 22000, successRate: 0.81 },
-        'Goiás': { recoveryAmount: 20000, successRate: 0.73 },
-      };
+      // Extract regional data from traces based on metadata
+      const regionalData: Record<string, { recoveryAmount: number, successRate: number, count: number }> = {};
+      const verticalData: Record<string, { recoveryAmount: number, successRate: number, count: number }> = {};
       
-      // Mock vertical performance data
-      const mockVerticalData = [
-        { name: 'Telecom', recoveryAmount: 180000, successRate: 0.79 },
-        { name: 'Utilities', recoveryAmount: 150000, successRate: 0.76 },
-        { name: 'Education', recoveryAmount: 95000, successRate: 0.81 },
-        { name: 'Retail', recoveryAmount: 62000, successRate: 0.74 },
-      ];
+      // Default regions and verticals if metadata is not available
+      const defaultRegions = ['São Paulo', 'Rio de Janeiro', 'Minas Gerais', 'Bahia', 'Rio Grande do Sul'];
+      const defaultVerticals = ['Telecom', 'Utilities', 'Education', 'Retail'];
+      
+      // Process traces to extract regional and vertical data
+      traces.forEach(trace => {
+        // Extract region from metadata or assign randomly if not available
+        const region = trace.metadata?.region || 
+                      defaultRegions[Math.floor(Math.random() * defaultRegions.length)];
+        
+        // Extract vertical from metadata or assign randomly if not available
+        const vertical = trace.metadata?.vertical || 
+                       defaultVerticals[Math.floor(Math.random() * defaultVerticals.length)];
+        
+        // Determine if this trace was successful
+        const isSuccessful = trace.status === 'success' || 
+                           trace.feedback?.some(f => f.key === 'resolved' && f.value === true);
+        
+        // Calculate estimated recovery amount based on token usage and success
+        // This is a simplified calculation - in a real scenario, this would be based on actual business metrics
+        const traceTokens = trace.metrics?.total_tokens || 0;
+        const estimatedRecoveryAmount = isSuccessful ? traceTokens * 0.5 : 0; // Simple estimation
+        
+        // Update regional data
+        if (!regionalData[region]) {
+          regionalData[region] = { recoveryAmount: 0, successRate: 0, count: 0 };
+        }
+        regionalData[region].recoveryAmount += estimatedRecoveryAmount;
+        regionalData[region].count += 1;
+        if (isSuccessful) {
+          regionalData[region].successRate += 1;
+        }
+        
+        // Update vertical data
+        if (!verticalData[vertical]) {
+          verticalData[vertical] = { recoveryAmount: 0, successRate: 0, count: 0 };
+        }
+        verticalData[vertical].recoveryAmount += estimatedRecoveryAmount;
+        verticalData[vertical].count += 1;
+        if (isSuccessful) {
+          verticalData[vertical].successRate += 1;
+        }
+      });
+      
+      // Calculate final success rates
+      Object.keys(regionalData).forEach(region => {
+        if (regionalData[region].count > 0) {
+          regionalData[region].successRate = regionalData[region].successRate / regionalData[region].count;
+        }
+      });
+      
+      Object.keys(verticalData).forEach(vertical => {
+        if (verticalData[vertical].count > 0) {
+          verticalData[vertical].successRate = verticalData[vertical].successRate / verticalData[vertical].count;
+        }
+      });
       
       // Calculate ROI
-      const totalRecovery = Object.values(mockRegionalData).reduce(
-        (sum, region: any) => sum + region.recoveryAmount, 
+      const totalRecovery = Object.values(regionalData).reduce(
+        (sum, region) => sum + region.recoveryAmount, 
         0
       );
       
       const totalCost = enrichedData.costComparison.aiCost * tokenUsage.runCount;
-      const roi = (totalRecovery - totalCost) / totalCost;
+      const roi = totalCost > 0 ? (totalRecovery - totalCost) / totalCost : 0;
       
       return {
         roi: roi * 100, // Convert to percentage
         costComparison: enrichedData.costComparison,
-        regionalData: Object.entries(mockRegionalData).map(([region, data]: [string, any]) => ({
+        regionalData: Object.entries(regionalData).map(([region, data]) => ({
           region,
           recoveryAmount: data.recoveryAmount,
           successRate: data.successRate * 100, // Convert to percentage
         })),
-        verticalPerformance: mockVerticalData.map(vertical => ({
-          ...vertical,
-          successRate: vertical.successRate * 100, // Convert to percentage
+        verticalPerformance: Object.entries(verticalData).map(([name, data]) => ({
+          name,
+          recoveryAmount: data.recoveryAmount,
+          successRate: data.successRate * 100, // Convert to percentage
         })),
       };
     } catch (error) {
@@ -224,39 +290,92 @@ export class MetricsEnrichmentService {
    */
   async getTimeSeriesMetrics(days = 7) {
     try {
-      // Generate mock time series data (in a real scenario, this would come from historical data)
       const today = new Date();
       const timeSeriesData = [];
+      const responseTimeRanges = {
+        '0-30s': 0,
+        '30-60s': 0,
+        '1-2m': 0,
+        '2-5m': 0,
+        '5m+': 0
+      };
       
+      // Get data for each day in the time series
       for (let i = 0; i < days; i++) {
         const date = new Date(today);
         date.setDate(date.getDate() - (days - 1 - i));
         const dateStr = date.toISOString().split('T')[0];
         
-        // Generate realistic fluctuating metrics
-        const baseSuccessRate = 0.70 + (Math.random() * 0.15);
-        const baseResponseTime = 45 + (Math.random() * 30);
-        const baseCost = 12 + (Math.random() * 8);
+        // Get traces for this specific day
+        const startTime = new Date(date);
+        startTime.setHours(0, 0, 0, 0);
+        
+        const endTime = new Date(date);
+        endTime.setHours(23, 59, 59, 999);
+        
+        const traces = await this.langsmithService.getConversationTraces(50, startTime.toISOString(), endTime.toISOString());
+        
+        // Calculate metrics from traces
+        const successfulTraces = traces.filter(trace => 
+          trace.status === 'success' || 
+          trace.feedback?.some(f => f.key === 'resolved' && f.value === true)
+        );
+        
+        // Calculate success rate
+        const successRate = traces.length > 0 ? (successfulTraces.length / traces.length) * 100 : 0;
+        
+        // Calculate average response time
+        let totalResponseTime = 0;
+        let responseCount = 0;
+        
+        traces.forEach(trace => {
+          if (trace.start_time && trace.end_time) {
+            const startTime = new Date(trace.start_time).getTime();
+            const endTime = new Date(trace.end_time).getTime();
+            const responseTime = (endTime - startTime) / 1000; // Convert to seconds
+            
+            totalResponseTime += responseTime;
+            responseCount++;
+            
+            // Update response time distribution
+            if (responseTime < 30) {
+              responseTimeRanges['0-30s']++;
+            } else if (responseTime < 60) {
+              responseTimeRanges['30-60s']++;
+            } else if (responseTime < 120) {
+              responseTimeRanges['1-2m']++;
+            } else if (responseTime < 300) {
+              responseTimeRanges['2-5m']++;
+            } else {
+              responseTimeRanges['5m+']++;
+            }
+          }
+        });
+        
+        const averageResponseTime = responseCount > 0 ? totalResponseTime / responseCount : 0;
+        
+        // Calculate AI cost based on token usage
+        const totalTokens = traces.reduce((sum, trace) => sum + (trace.metrics?.total_tokens || 0), 0);
+        const aiCost = totalTokens * 0.002 / 1000; // Simple cost calculation based on token usage
+        
+        // Fixed human cost for comparison
+        const humanCost = 85;
         
         timeSeriesData.push({
           date: dateStr,
-          successRate: baseSuccessRate * 100, // Convert to percentage
-          responseTime: baseResponseTime, // in seconds
-          aiCost: baseCost,
-          humanCost: 85, // Fixed human cost
+          successRate,
+          responseTime: averageResponseTime,
+          aiCost,
+          humanCost,
         });
       }
       
       return {
         timeSeriesData,
-        // Distribution of response times (mock data)
-        responseTimeDistribution: [
-          { range: '0-30s', count: 125 },
-          { range: '30-60s', count: 320 },
-          { range: '1-2m', count: 210 },
-          { range: '2-5m', count: 95 },
-          { range: '5m+', count: 50 },
-        ],
+        responseTimeDistribution: Object.entries(responseTimeRanges).map(([range, count]) => ({
+          range,
+          count
+        })),
       };
     } catch (error) {
       console.error('Error getting time series metrics:', error);
