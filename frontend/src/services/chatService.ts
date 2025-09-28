@@ -4,7 +4,7 @@ class ChatService {
   private socket: WebSocket | null = null;
 
   connect(sessionId: string) {
-    this.socket = new WebSocket(`wss://hackthon-bemobi-1.onrender.com/chat/${sessionId}`);
+    this.socket = new WebSocket(`https://gemini-churn-prevention.vercel.app/chat/${sessionId}`);
 
     this.socket.onopen = () => {
       console.log('WebSocket connected');
