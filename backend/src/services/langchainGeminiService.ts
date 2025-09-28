@@ -1,23 +1,8 @@
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { BaseMessage, HumanMessage, AIMessage, SystemMessage } from '@langchain/core/messages';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
-import { Client } from 'langsmith';
-import { traceable } from 'langsmith/traceable';
 import ChatMessage from '../models/chatMessage';
 import { TemplateService } from './templateService';
-
-// Define interfaces for better type safety
-interface PaymentMethod {
-  id: string;
-  cardType: string;
-  lastFourDigits: string;
-  expiryMonth: number;
-  expiryYear: number;
-  status: string;
-  failureCount: number;
-  lastFailureDate?: string;
-  lastSuccessDate?: string;
-}
 
 interface CustomerData {
   id: string;
@@ -27,11 +12,11 @@ interface CustomerData {
   serviceProvider: string;
   serviceType: string;
   accountValue: number;
-  paymentMethod: PaymentMethod;
   riskCategory: string;
   riskSeverity?: string;
   lastPaymentDate: string;
   nextBillingDate: string;
+  currentPaymentStatus?: string;
 }
 
 const geminiApiKey = process.env.GEMINI_API_KEY;
@@ -43,11 +28,6 @@ if (!geminiApiKey) {
 export class LangchainGeminiService {
   private model: ChatGoogleGenerativeAI;
   private templateService: TemplateService;
-  private langsmithClient?: Client;
-  private isLangSmithEnabled: boolean = false;
-  public enhanceMessageWithAI!: (chatSession: any, customerData: CustomerData, templateMessage: string) => Promise<ChatMessage>;
-  public generateAIMessage!: (chatSession: any, customerData: CustomerData | null) => Promise<ChatMessage>;
-  public generateResponse!: (history: ChatMessage[], currentMessage: ChatMessage) => Promise<ChatMessage>;
 
   constructor() {
     this.model = new ChatGoogleGenerativeAI({
@@ -58,203 +38,178 @@ export class LangchainGeminiService {
     });
 
     this.templateService = new TemplateService();
-
-    // Initialize LangSmith client if API key is available
-    if (process.env.LANGCHAIN_API_KEY) {
-      try {
-        this.langsmithClient = new Client({
-          apiKey: process.env.LANGCHAIN_API_KEY,
-          apiUrl: process.env.LANGCHAIN_ENDPOINT || 'https://api.smith.langchain.com',
-        });
-        this.isLangSmithEnabled = true;
-        console.log('LangSmith client initialized successfully');
-      } catch (error) {
-        console.warn('Failed to initialize LangSmith client:', error);
-        this.isLangSmithEnabled = false;
-      }
-    } else {
-      console.warn('LangSmith API key not found - tracing will be disabled');
-      this.isLangSmithEnabled = false;
-    }
-
-    // Initialize traceable methods after LangSmith setup
-    this.initializeTraceableMethods();
-  }
-
-  // Helper method to safely create traceable functions
-  private createTraceable<T extends (...args: any[]) => any>(
-    fn: T,
-    name: string,
-    metadata: Record<string, any> = {}
-  ): T {
-    if (this.isLangSmithEnabled) {
-      try {
-        return traceable(fn, { name, metadata });
-      } catch (error) {
-        console.warn(`Failed to create traceable function ${name}:`, error);
-        return fn;
-      }
-    }
-    return fn;
-  }
-
-  // Initialize traceable methods
-  private initializeTraceableMethods(): void {
-    this.enhanceMessageWithAI = this.createTraceable(
-      async (chatSession: any, customerData: CustomerData, templateMessage: string): Promise<ChatMessage> => {
-        try {
-          const serviceCategory = this.getServiceCategory(customerData.serviceProvider);
-          const systemPrompt = this.templateService.getSystemPrompt(serviceCategory);
-
-          const customerContext = this.buildCustomerContext(customerData);
-
-          const prompt = ChatPromptTemplate.fromMessages([
-            ['system', systemPrompt + `\n\nVocê deve manter o tom e informações da mensagem template, mas pode personalizar e melhorar a linguagem para ser mais natural e empática. Mantenha a mensagem concisa (máximo 2-3 frases).`],
-            ['human', `Melhore esta mensagem template mantendo as informações principais:\n\n"${templateMessage}"\n\nContexto do cliente:\n${customerContext}\n\nTorne a mensagem mais natural e empática, mas mantenha as informações específicas (datas, valores, etc.).`],
-          ]);
-
-          const chain = prompt.pipe(this.model);
-          const result = await chain.invoke({});
-
-          const enhancedContent = result.content as string || templateMessage;
-
-          return new ChatMessage({
-            chatSessionId: chatSession.id,
-            sender: 'ai',
-            content: enhancedContent,
-            timestamp: new Date(),
-            messageType: 'greeting',
-          });
-        } catch (error) {
-          console.error('Error enhancing message with Gemini AI:', error);
-          // Return the original template message if AI enhancement fails
-          return new ChatMessage({
-            chatSessionId: chatSession.id,
-            sender: 'ai',
-            content: templateMessage,
-            timestamp: new Date(),
-            messageType: 'greeting',
-          });
-        }
-      },
-      "enhance_message_with_ai",
-      { service: "langchain-gemini" }
-    );
-
-    this.generateAIMessage = this.createTraceable(
-      async (chatSession: any, customerData: CustomerData | null): Promise<ChatMessage> => {
-        try {
-          const customerContext = this.buildCustomerContext(customerData);
-          const serviceCategory = customerData?.serviceProvider ? this.getServiceCategory(customerData.serviceProvider) : 'telecom';
-          const systemPrompt = this.templateService.getSystemPrompt(serviceCategory);
-
-          const prompt = ChatPromptTemplate.fromMessages([
-            ['system', systemPrompt],
-            ['human', `Inicie uma conversa com o cliente. Contexto:\n${customerContext}\n\nCrie uma mensagem de abertura personalizada e direta.`],
-          ]);
-
-          const chain = prompt.pipe(this.model);
-          const result = await chain.invoke({});
-
-          const aiResponseContent = result.content as string || '';
-
-          return new ChatMessage({
-            chatSessionId: chatSession.id,
-            sender: 'ai',
-            content: aiResponseContent,
-            timestamp: new Date(),
-            messageType: 'greeting',
-          });
-        } catch (error) {
-          console.error('Error generating AI message with Gemini:', error);
-          return this.generateFallbackMessage(chatSession, customerData);
-        }
-      },
-      "generate_ai_message",
-      { service: "langchain-gemini" }
-    );
-
-    this.generateResponse = this.createTraceable(
-      async (
-        history: ChatMessage[],
-        currentMessage: ChatMessage
-      ): Promise<ChatMessage> => {
-        try {
-          const systemPrompt = 'Você é um agente especialista em retenção de clientes da Bemobi, focado exclusivamente em resolver problemas de pagamento para prevenir cancelamentos de assinatura. Seu objetivo é conduzir conversas naturais e eficientes que resultem na atualização bem-sucedida de métodos de pagamento.\n\n## CONTEXTO E OBJETIVO\nVocê só entra em contato quando há problemas específicos de pagamento: cartões expirando ou pagamentos que falharam. Seu único objetivo é resolver esses problemas rapidamente, mantendo o cliente satisfeito e a assinatura ativa.\n\n## COMPORTAMENTO CONVERSACIONAL\n- Seja natural e empático, como um atendente humano experiente\n- Use linguagem brasileira informal mas profissional\n- Mantenha respostas concisas (máximo 2-3 frases)\n- Vá direto ao ponto sem rodeios desnecessários\n- Demonstre urgência apropriada sem pressionar\n\n## FLUXO DE CONVERSA\n1. **Abertura**: Cumprimente pelo nome e identifique o problema específico\n2. **Confirmação**: Confirme disponibilidade para resolver agora\n3. **Coleta**: Solicite dados do novo cartão de forma clara\n4. **Processamento**: Informe sobre o processamento\n5. **Confirmação**: Confirme sucesso e próximos passos\n\n## CENÁRIOS ESPECÍFICOS\n\n### Cartão Expirando:\n- Abordagem preventiva e útil\n- Enfatize conveniência de resolver agora\n- Exemplo: "Oi [Nome]! Notei que seu cartão [últimos 4 dígitos] vence [data]. Quer atualizar agora para evitar qualquer interrupção?"\n\n### Pagamento Falhou:\n- Abordagem empática mas urgente\n- Ofereça solução imediata\n- Exemplo: "[Nome], seu pagamento de R$ [valor] não foi processado hoje. Posso ajudar a resolver agora mesmo?"\n\n## COLETA DE DADOS\nQuando solicitar informações do cartão:\n- Peça número do cartão, validade e CVV separadamente\n- Tranquilize sobre segurança: "Usamos a mesma criptografia dos bancos"\n- Confirme dados antes de processar\n\n## TRATAMENTO DE EXCEÇÕES\n\n### Dados Inválidos:\n- "O número do cartão parece estar incorreto. Pode verificar os dígitos?"\n- Ofereça ajuda: "É comum confundir alguns números"\n\n### Cliente Hesitante:\n- Reconheça preocupação: "Entendo sua preocupação com segurança"\n- Ofereça reasseguranças: "É o mesmo processo seguro que bancos usam"\n- Respeite decisão: "Sem problema. Posso agendar para outro momento?"\n\n### Cliente Recusa:\n- Aceite a decisão sem insistir\n- Informe consequências sem pressionar: "Entendo. Só para você saber, o serviço pode ser interrompido em [data]"\n- Ofereça alternativa: "Quer que eu entre em contato amanhã?"\n\n### Problemas Técnicos:\n- "Tivemos um probleminha técnico. Vou tentar novamente..."\n- Se persistir: "O sistema está instável. Posso reagendar para resolver em 1 hora?"\n\n### Abandono de Conversa:\n- Após 2 minutos de inatividade: "Ainda está aí? Posso esclarecer alguma dúvida?"\n- Seja paciente e ofereça ajuda\n\n## REGRAS RÍGIDAS\n- NUNCA fale sobre outros produtos ou serviços\n- NUNCA mencione promoções ou vendas\n- NUNCA discuta política da empresa ou regras internas\n- NUNCA pressione cliente que claramente recusou\n- NUNCA dê informações que não tem certeza\n- SEMPRE mantenha foco no problema de pagamento\n- SEMPRE confirme dados antes de processar\n- SEMPRE informe sobre próximos passos\n\n## CONFIRMAÇÃO DE SUCESSO\nQuando pagamento for processado com sucesso:\n- Confirme imediatamente: "Pronto! Cartão atualizado com sucesso ✅"\n- Informe próximo pagamento: "Seu próximo pagamento será processado em [data]"\n- Agradeça: "Obrigado por resolver isso conosco!"\n- Pergunte se precisa de mais alguma coisa\n\n## CONTEXTO DINÂMICO\nVocê sempre terá acesso a:\n- Nome do cliente\n- Problema específico (cartão expirando/pagamento falhou)\n- Dados da assinatura (valor, próximo vencimento)\n- Últimos 4 dígitos do cartão atual\n- Histórico de tentativas anteriores\n\nUse essas informações para personalizar a conversa e demonstrar que conhece a situação do cliente.\n\n## OBJETIVO FINAL\nCada conversa deve resultar em:\n1. Problema de pagamento resolvido OU\n2. Agendamento claro para resolução OU\n3. Cliente esclarecido sobre consequências da não resolução\n\nSempre termine com perspectiva positiva e mantenha relacionamento preservado, independente do resultado.';
-
-          // Convert chat history to Langchain messages
-          const messages: BaseMessage[] = [
-            new SystemMessage(systemPrompt),
-            ...history.map(msg =>
-              msg.sender === 'customer'
-                ? new HumanMessage(msg.content)
-                : new AIMessage(msg.content)
-            ),
-            new HumanMessage(currentMessage.content)
-          ];
-
-          const result = await this.model.invoke(messages);
-          const aiResponseContent = result.content as string || '';
-
-          return new ChatMessage({
-            chatSessionId: currentMessage.chatSessionId,
-            sender: 'ai',
-            content: aiResponseContent,
-            timestamp: new Date(),
-            messageType: 'confirmation',
-          });
-        } catch (error) {
-          console.error('Error communicating with Gemini AI:', error);
-          // Fallback or error message
-          return new ChatMessage({
-            chatSessionId: currentMessage.chatSessionId,
-            sender: 'ai',
-            content:
-              "Desculpe, estou com dificuldades para processar sua mensagem no momento. Pode tentar novamente?",
-            timestamp: new Date(),
-            messageType: 'error',
-          });
-        }
-      },
-      "generate_response",
-      { service: "langchain-gemini" }
-    );
   }
 
   public async generateInitialMessage(chatSession: any, customerData: CustomerData | null = null): Promise<ChatMessage> {
     try {
-      // Use template-based message generation if we have customer data
-      if (customerData && customerData.riskCategory) {
-        const scenario = this.templateService.getScenarioFromRisk(customerData.riskCategory);
+      const customerContext = this.buildCustomerContext(customerData);
+      const serviceCategory = customerData?.serviceProvider ? this.getServiceCategory(customerData.serviceProvider) : 'telecom';
+      const systemPrompt = this.templateService.getSystemPrompt(serviceCategory);
 
-        // Check if we should trigger intervention based on business rules
-        if (!this.templateService.shouldTriggerIntervention(customerData)) {
-          console.log(`Intervention not triggered for customer ${customerData.id} - conditions not met`);
+      const prompt = ChatPromptTemplate.fromMessages([
+        ['system', systemPrompt],
+        ['human', `Inicie uma conversa com o cliente. Contexto:\n${customerContext}\n\nENVIE APENAS uma saudação curta e direta, Seja empático, educado e use linguagem coloquial brasileira. Explique o motivo do contato deixando claro que é um problema no pagamento. NÃO mencione fatura ou cartão nesta mensagem - isso será enviado automaticamente na próxima mensagem.`],
+      ]);
+
+      const chain = prompt.pipe(this.model);
+      const result = await chain.invoke({});
+
+      let aiResponseContent = '';
+      if (result.content) {
+        aiResponseContent = typeof result.content === 'string' ? result.content : String(result.content);
+      }
+
+      if (!aiResponseContent || aiResponseContent.trim() === '') {
+        console.warn('AI returned empty initial message, using fallback');
+        return this.generateFallbackMessage(chatSession, customerData);
+      }
+
+      return new ChatMessage({
+        chatSessionId: chatSession.id,
+        sender: 'ai',
+        content: aiResponseContent.trim(),
+        timestamp: new Date(),
+        messageType: 'greeting',
+      });
+    } catch (error) {
+      console.error('Error generating AI message with Gemini:', error);
+      return this.generateFallbackMessage(chatSession, customerData);
+    }
+  }
+
+  public generateInvoiceCardMessage(chatSession: any, customerData: CustomerData | null = null): ChatMessage {
+    // Calcula a data de vencimento (15 dias a partir de hoje como exemplo)
+    const dueDate = new Date();
+    dueDate.setDate(dueDate.getDate() + 15);
+    const formattedDueDate = dueDate.toLocaleDateString('pt-BR');
+
+    // Gera dados do cartão de fatura
+    const invoiceData = {
+      customerName: chatSession.customerName || customerData?.name || 'Cliente',
+      accountNumber: customerData?.id ? customerData.id.substring(0, 9) : '123423453',
+      brandName: customerData?.serviceProvider || 'Vivo',
+      dueDate: formattedDueDate,
+      amount: customerData?.accountValue ? (customerData.accountValue / 100) : 49.90,
+      billPeriod: this.getCurrentMonthName()
+    };
+
+    console.log('Gerando invoice card com dados:', invoiceData);
+
+    const content = `[INVOICE_CARD]${JSON.stringify(invoiceData)}`;
+
+    return new ChatMessage({
+      chatSessionId: chatSession.id,
+      sender: 'ai',
+      content: content,
+      timestamp: new Date(),
+      messageType: 'response',
+    });
+  }
+
+  public async generateResponse(
+    history: ChatMessage[],
+    currentMessage: ChatMessage
+  ): Promise<ChatMessage> {
+    try {
+      let systemPrompt = `Você é um assistente de atendimento da Bemobi via WhatsApp, especializado em resolver problemas de pagamento de forma rápida e amigável.
+
+#REGRAS OBRIGATÓRIAS:
+1. SEMPRE responda com conteúdo útil e positivo - nunca deixe a resposta vazia
+2. NUNCA ofereça links ou URLs
+3. APENAS use o botão de pagamento quando o cliente concordar em pagar
+4. Seja empático, educado e use linguagem coloquial brasileira
+5. Mantenha respostas curtas (máximo 2 frases quando muito necessário)
+6. NUNCA diga que tem dificuldades para processar mensagens
+
+FLUXO DE PAGAMENTO WHATSAPP:
+- Se o cliente concordar em pagar ou escolher um método de pagamento, responda EXATAMENTE: [PAYMENT_BUTTON]
+- NUNCA adicione texto extra com [PAYMENT_BUTTON]
+- Se receber mensagem sobre "PAYMENT_CONFIRMED", SEMPRE confirme o sucesso do pagamento, agradeça e se despeça educadamente
+
+RESPOSTA PARA MÉTODOS DE PAGAMENTO:
+- Se cliente escolher Pix, Cartão de Crédito ou Boleto, responda apenas: [PAYMENT_BUTTON]
+- Se cliente disser "pix", "cartão", "boleto", ou similar, responda: [PAYMENT_BUTTON]
+
+EXEMPLOS DE RESPOSTAS:
+- Para "quero pagar com pix": "[PAYMENT_BUTTON]"
+- Para "vou pagar no cartão": "[PAYMENT_BUTTON]"
+- Para "escolho boleto": "[PAYMENT_BUTTON]"
+- Pós-pagamento: "Perfeito! ✅ Seu pagamento foi processado com sucesso. Muito obrigado e tenha um ótimo dia!"
+
+IMPORTANTE:
+- Este é um atendimento via WhatsApp
+- SEMPRE seja positivo e útil
+- Quando o pagamento for confirmado, SEMPRE celebre o sucesso e agradeça
+- NUNCA mencione dificuldades técnicas`;
+
+      const messages: BaseMessage[] = [
+        new SystemMessage(systemPrompt),
+        ...history.map(msg =>
+          msg.sender === 'customer'
+            ? new HumanMessage(msg.content)
+            : new AIMessage(msg.content)
+        ),
+        new HumanMessage(currentMessage.content)
+      ];
+
+      const result = await this.model.invoke(messages);
+
+      let aiResponseContent = '';
+      if (result.content) {
+        aiResponseContent = typeof result.content === 'string' ? result.content : String(result.content);
+      }
+
+      if (!aiResponseContent || aiResponseContent.trim() === '') {
+        console.warn('AI returned empty response, using context fallback');
+
+        if (currentMessage.content.includes('PAYMENT_CONFIRMED')) {
+          return new ChatMessage({
+            chatSessionId: currentMessage.chatSessionId,
+            sender: 'ai',
+            content: 'Perfeito! ✅ Seu pagamento foi processado com sucesso. Muito obrigado e tenha um ótimo dia!',
+            timestamp: new Date(),
+            messageType: 'response',
+          });
         }
 
-        // Generate template-based message
-        const templateMessage = this.templateService.generateMessage(customerData, scenario);
-
-        // For critical cases or when templates are simple, enhance with AI
-        if (customerData.riskSeverity === 'critical' || customerData.riskCategory === 'multiple-failures') {
-          return await this.enhanceMessageWithAI(chatSession, customerData, templateMessage);
+        // Verifica se é uma escolha de método de pagamento
+        const lowerContent = currentMessage.content.toLowerCase();
+        if (lowerContent.includes('pix') || lowerContent.includes('cartão') || lowerContent.includes('boleto') || 
+            lowerContent.includes('credito') || lowerContent.includes('crédito')) {
+          return new ChatMessage({
+            chatSessionId: currentMessage.chatSessionId,
+            sender: 'ai',
+            content: '[PAYMENT_BUTTON]',
+            timestamp: new Date(),
+            messageType: 'response',
+          });
         }
 
         return new ChatMessage({
-          chatSessionId: chatSession.id,
+          chatSessionId: currentMessage.chatSessionId,
           sender: 'ai',
-          content: templateMessage,
+          content: 'Entendi! Como posso te ajudar com sua questão de pagamento?',
           timestamp: new Date(),
-          messageType: 'greeting',
+          messageType: 'response',
         });
       }
 
-      // Fallback to AI generation for cases without proper customer data
-      return await this.generateAIMessage(chatSession, customerData);
-
+      return new ChatMessage({
+        chatSessionId: currentMessage.chatSessionId,
+        sender: 'ai',
+        content: aiResponseContent.trim(),
+        timestamp: new Date(),
+        messageType: 'response',
+      });
     } catch (error) {
-      console.error('Error generating initial message:', error);
-      return this.generateFallbackMessage(chatSession, customerData);
+      console.error('Error communicating with Gemini AI:', error);
+      return new ChatMessage({
+        chatSessionId: currentMessage.chatSessionId,
+        sender: 'ai',
+        content: "Desculpe, estou com dificuldades para processar sua mensagem no momento. Pode tentar novamente?",
+        timestamp: new Date(),
+        messageType: 'error',
+      });
     }
   }
 
@@ -267,13 +222,7 @@ export class LangchainGeminiService {
     if (customerData.serviceProvider) context += `\nProvedor: ${customerData.serviceProvider}`;
     if (customerData.serviceType) context += `\nServiço: ${customerData.serviceType}`;
     if (customerData.accountValue) context += `\nValor: R$ ${(customerData.accountValue / 100).toFixed(2)}`;
-    if (customerData.riskCategory) context += `\nProblema: ${customerData.riskCategory}`;
-    if (customerData.paymentMethod) {
-      context += `\nCartão: ****${customerData.paymentMethod.lastFourDigits}`;
-      if (customerData.paymentMethod.failureCount > 0) {
-        context += ` (${customerData.paymentMethod.failureCount} falhas)`;
-      }
-    }
+    if (customerData.currentPaymentStatus) context += `\nStatus Pagamento: ${customerData.currentPaymentStatus}`;
 
     return context;
   }
@@ -287,7 +236,15 @@ export class LangchainGeminiService {
     if (utilities.includes(serviceProvider)) return 'utilities';
     if (education.includes(serviceProvider)) return 'education';
 
-    return 'telecom'; // default
+    return 'telecom';
+  }
+
+  private getCurrentMonthName(): string {
+    const months = [
+      'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+      'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'
+    ];
+    return months[new Date().getMonth()];
   }
 
   private generateFallbackMessage(chatSession: any, customerData: CustomerData | null): ChatMessage {
@@ -297,11 +254,7 @@ export class LangchainGeminiService {
       message += ` Aqui é da ${customerData.serviceProvider}.`;
     }
 
-    if (customerData?.riskCategory === 'expiring-card') {
-      message += ` Seu cartão vence em breve. Quer atualizar para manter seu serviço ativo?`;
-    } else {
-      message += ` Tivemos um problema com seu pagamento. Vamos resolver juntos?`;
-    }
+    message += ` Notamos algumas tentativas de pagamento sem sucesso do seu ${customerData?.serviceType || 'serviço'}. Que tal resolvermos isso para manter sua conexão ativa?`;
 
     return new ChatMessage({
       chatSessionId: chatSession.id,

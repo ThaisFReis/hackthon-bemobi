@@ -4,6 +4,7 @@ import { prisma } from '../lib/prisma';
 import ChatMessage from '../models/chatMessage';
 import ChatSession from '../models/chatSession';
 import { v4 as uuidv4 } from 'uuid';
+import { paymentProcessingService } from '../services/paymentProcessingService';
 
 const router = express.Router();
 const langchainGeminiService = new LangchainGeminiService();
@@ -11,20 +12,19 @@ const langchainGeminiService = new LangchainGeminiService();
 // Create a new chat session for agent activation
 router.post('/create-session', async (req, res) => {
   try {
-    const { customerId, customerName, paymentIssue } = req.body;
+    const { customerId, customerName, paymentIssue, customerData } = req.body;
 
     if (!customerId || !customerName) {
       return res.status(400).json({ error: 'Customer ID and name are required' });
     }
 
-    // Fetch complete customer data from database
+    // Busca dados completos do cliente do banco
     const dbCustomer = await prisma.customer.findUnique({
       where: { id: customerId },
       include: {
-        paymentMethods: true,
         riskFactors: true,
-        interventions: true,
-        paymentStatus: true
+        chatSessions: true,
+        paymentTransactions: true
       }
     });
 
@@ -32,8 +32,8 @@ router.post('/create-session', async (req, res) => {
       return res.status(404).json({ error: 'Customer not found' });
     }
 
-    // Convert to format expected by AI service
-    const customerData = {
+    // Converte para formato do AI service
+    const enhancedCustomerData = {
       id: dbCustomer.id,
       name: dbCustomer.name,
       email: dbCustomer.email,
@@ -45,28 +45,14 @@ router.post('/create-session', async (req, res) => {
       riskSeverity: dbCustomer.riskSeverity?.toLowerCase(),
       lastPaymentDate: dbCustomer.lastPaymentDate?.toISOString() || '',
       nextBillingDate: dbCustomer.nextBillingDate.toISOString(),
-      paymentMethod: dbCustomer.paymentMethods?.[0] ? {
-        id: dbCustomer.paymentMethods[0].id,
-        cardType: dbCustomer.paymentMethods[0].cardType || '',
-        lastFourDigits: '****', // Don't expose real data
-        expiryMonth: 0,
-        expiryYear: 0,
-        status: dbCustomer.paymentMethods[0].status.toLowerCase(),
-        failureCount: dbCustomer.paymentMethods[0].failureCount,
-        lastFailureDate: dbCustomer.paymentMethods[0].lastFailureDate?.toISOString(),
-        lastSuccessDate: dbCustomer.paymentMethods[0].lastSuccessDate?.toISOString()
-      } : {
-        id: '',
-        cardType: '',
-        lastFourDigits: '',
-        expiryMonth: 0,
-        expiryYear: 0,
-        status: '',
-        failureCount: 0
-      }
+      currentPaymentStatus: 'PENDING' // Default status since paymentStatus doesn't exist yet
     };
 
-    // Create chat session in database
+    console.log('--- Dados do Cliente para IA ---');
+    console.log(JSON.stringify(enhancedCustomerData, null, 2));
+    console.log('----------------------------------');
+
+    // Cria sessão no banco
     const dbChatSession = await prisma.chatSession.create({
       data: {
         id: uuidv4(),
@@ -86,35 +72,124 @@ router.post('/create-session', async (req, res) => {
       paymentIssue: dbChatSession.paymentIssue || 'unknown'
     });
 
-    // Generate initial AI message with complete customer data
-    const initialMessage = await langchainGeminiService.generateInitialMessage(chatSession, customerData);
+    // 1. GERA E SALVA MENSAGEM INICIAL
+    const initialMessage = await langchainGeminiService.generateInitialMessage(chatSession, enhancedCustomerData);
 
-    // Store the initial message in database
     await prisma.chatMessage.create({
       data: {
         chatSessionId: dbChatSession.id,
-        sender: 'AI' as any,
+        sender: 'AI',
         content: initialMessage.content,
-        messageType: 'TEXT' as any
+        messageType: 'TEXT'
       }
     });
 
-    // Emit to connected clients via Socket.io
+    // 2. GERA E SALVA INVOICE CARD (AUTOMATICAMENTE)
+    const invoiceCardMessage = langchainGeminiService.generateInvoiceCardMessage(chatSession, enhancedCustomerData);
+
+    await prisma.chatMessage.create({
+      data: {
+        chatSessionId: dbChatSession.id,
+        sender: 'AI',
+        content: invoiceCardMessage.content,
+        messageType: 'TEXT'
+      }
+    });
+
+    console.log('✅ Mensagens salvas no banco:');
+    console.log('1. Inicial:', initialMessage.content);
+    console.log('2. Invoice Card:', invoiceCardMessage.content);
+
+    // 3. EMITE PARA CLIENTES VIA SOCKET
     const io = req.app.get('io');
+    
+    // Emite mensagem inicial
     io.to(dbChatSession.id).emit('chat-initiated', {
       sessionId: dbChatSession.id,
       customerName,
       initialMessage
     });
 
+    // Emite invoice card após delay pequeno
+    setTimeout(() => {
+      console.log('🃏 Enviando invoice card via Socket.IO...');
+      io.to(dbChatSession.id).emit('receive-message', invoiceCardMessage);
+    }, 1000);
+
     return res.json({
       sessionId: dbChatSession.id,
       chatSession,
-      initialMessage
+      initialMessage,
+      invoiceCardMessage, // Retorna também para debug
+      customerData: enhancedCustomerData
     });
+
   } catch (error) {
     console.error('Error creating chat session:', error);
     return res.status(500).json({ error: 'Failed to create chat session' });
+  }
+});
+
+// NOVO ENDPOINT: Trigger manual para invoice card (para testes)
+router.post('/send-invoice-card/:sessionId', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+
+    // Busca dados da sessão
+    const dbSession = await prisma.chatSession.findUnique({
+      where: { id: sessionId },
+      include: {
+        customer: true
+      }
+    });
+
+    if (!dbSession) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    // Converte dados do cliente
+    const customerData = {
+      id: dbSession.customer.id,
+      name: dbSession.customer.name,
+      serviceProvider: dbSession.customer.serviceProvider,
+      serviceType: dbSession.customer.serviceType,
+      accountValue: Number(dbSession.customer.accountValue)
+    };
+
+    // Cria objeto de sessão temporário
+    const tempSession = {
+      id: sessionId,
+      customerName: dbSession.customerName
+    };
+
+    // Gera invoice card
+    const invoiceCardMessage = langchainGeminiService.generateInvoiceCardMessage(tempSession, customerData);
+
+    // Salva no banco
+    await prisma.chatMessage.create({
+      data: {
+        chatSessionId: sessionId,
+        sender: 'AI',
+        content: invoiceCardMessage.content,
+        messageType: 'TEXT'
+      }
+    });
+
+    // Emite via Socket.IO
+    const io = req.app.get('io');
+    io.to(sessionId).emit('receive-message', invoiceCardMessage);
+
+    console.log('✅ Invoice card enviado manualmente para sessão:', sessionId);
+
+    return res.json({
+      success: true,
+      message: 'Invoice card sent',
+      invoiceCard: invoiceCardMessage
+    });
+
+  } catch (error) {
+    console.error('Error sending invoice card:', error);
+    return res.status(500).json({ error: 'Failed to send invoice card' });
   }
 });
 
@@ -325,15 +400,23 @@ router.post('/send-message', async (req, res) => {
 
       const aiResponse = await langchainGeminiService.generateResponse(chatHistory, message);
 
+      // Check if the AI response contains the payment link to set the correct message type
+      const messageType = aiResponse.content.includes('/api/payments/simulate-chat-payment')
+        ? 'PAYMENT_LINK'
+        : 'TEXT';
+
       // Store AI response in database
       await prisma.chatMessage.create({
         data: {
           chatSessionId: sessionId,
           sender: 'AI' as any,
           content: aiResponse.content,
-          messageType: 'TEXT' as any
+          messageType: messageType as any,
         }
       });
+      
+      // Also update the messageType in the object being sent to the client
+      aiResponse.messageType = messageType;
 
       io.to(sessionId).emit('receive-message', aiResponse);
 
@@ -344,6 +427,83 @@ router.post('/send-message', async (req, res) => {
   } catch (error) {
     console.error('Error sending message:', error);
     return res.status(500).json({ error: 'Failed to send message' });
+  }
+});
+
+// Handle payment confirmation and generate AI follow-up message
+router.post('/payment-confirmed', async (req, res) => {
+  try {
+    const { sessionId, customerId, amount, paymentId } = req.body;
+
+    if (!sessionId || !customerId) {
+      return res.status(400).json({ error: 'Session ID and Customer ID are required' });
+    }
+
+    // Get chat session and its history
+    const dbSession = await prisma.chatSession.findUnique({
+      where: { id: sessionId },
+      include: {
+        messages: {
+          orderBy: {
+            timestamp: 'asc'
+          }
+        }
+      }
+    });
+
+    if (!dbSession) {
+      return res.status(404).json({ error: 'Chat session not found' });
+    }
+
+    // Convert database messages to ChatMessage instances for AI service
+    const chatHistory = dbSession.messages.map(msg => new ChatMessage({
+      chatSessionId: msg.chatSessionId,
+      sender: msg.sender.toLowerCase() as any,
+      content: msg.content,
+      timestamp: msg.timestamp,
+      messageType: msg.messageType.toLowerCase() as any
+    }));
+
+    // Create a system message about payment confirmation
+    const paymentConfirmationMessage = new ChatMessage({
+      chatSessionId: sessionId,
+      sender: 'system',
+      content: `PAYMENT_CONFIRMED: Customer payment of R$ ${amount} was successfully processed. Please confirm the payment to the customer, thank them, and say goodbye to complete the interaction.`,
+      timestamp: new Date(),
+      messageType: 'system'
+    });
+
+    console.log('=== Payment Confirmation Debug ===');
+    console.log('Session ID:', sessionId);
+    console.log('Payment Amount:', amount);
+    console.log('Chat History Length:', chatHistory.length);
+    console.log('Payment Confirmation Message:', paymentConfirmationMessage.content);
+    console.log('===================================');
+
+    // Generate AI response for payment confirmation
+    const aiResponse = await langchainGeminiService.generateResponse(chatHistory, paymentConfirmationMessage);
+
+    console.log('AI Response Generated:', aiResponse.content);
+    console.log('===================================');
+
+    // Store AI response in database
+    await prisma.chatMessage.create({
+      data: {
+        chatSessionId: sessionId,
+        sender: 'AI' as any,
+        content: aiResponse.content,
+        messageType: 'TEXT' as any
+      }
+    });
+
+    // Emit the AI response via Socket.io
+    const io = req.app.get('io');
+    io.to(sessionId).emit('receive-message', aiResponse);
+
+    return res.json({ success: true, aiResponse });
+  } catch (error) {
+    console.error('Error handling payment confirmation:', error);
+    return res.status(500).json({ error: 'Failed to handle payment confirmation' });
   }
 });
 

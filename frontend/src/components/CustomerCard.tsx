@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Customer } from '../../../../backend/src/models/customer';
+import { MessageSquare, Zap, CheckCircle, AlertTriangle } from 'lucide-react';
 
 interface CustomerCardProps {
   customer: Customer;
@@ -14,7 +15,6 @@ const CustomerCard: React.FC<CustomerCardProps> = ({ customer, onChatTriggered }
     setIsTriggering(true);
 
     try {
-      // Determine payment issue based on customer data
       let paymentIssue = 'payment-failure';
       if (customer.riskCategory === 'expiring-card') {
         paymentIssue = 'card-expiring-soon';
@@ -31,7 +31,7 @@ const CustomerCard: React.FC<CustomerCardProps> = ({ customer, onChatTriggered }
           customerId: customer.id,
           customerName: customer.name,
           paymentIssue: paymentIssue,
-          customerData: customer // Pass complete customer object
+          customerData: customer,
         }),
       });
 
@@ -40,12 +40,10 @@ const CustomerCard: React.FC<CustomerCardProps> = ({ customer, onChatTriggered }
         setChatActive(true);
         console.log(`Chat session created: ${data.sessionId}`);
 
-        // Notify parent component about the chat session
         if (onChatTriggered) {
           onChatTriggered(data.sessionId);
         }
 
-        // Open chat window (this would open a new window or navigate to chat page)
         const chatUrl = `/chat/${data.sessionId}`;
         window.open(chatUrl, '_blank', 'width=600,height=800');
       } else {
@@ -58,36 +56,76 @@ const CustomerCard: React.FC<CustomerCardProps> = ({ customer, onChatTriggered }
     }
   };
 
+  const riskStyles = {
+    'failed-payment': 'bg-red-500/20 text-red-300',
+    'expiring-card': 'bg-yellow-500/20 text-yellow-300',
+    'default': 'bg-gray-500/20 text-gray-300',
+  };
+
+  const statusStyles = {
+    'at-risk': 'bg-red-500/20 text-red-300',
+    'active': 'bg-green-500/20 text-green-300',
+    'default': 'bg-gray-500/20 text-gray-300',
+  };
+
   return (
-    <div className="border rounded-lg p-4 shadow-md">
-      <h2 className="text-xl font-bold">{customer.name}</h2>
-      <p>Email: {customer.email}</p>
-      <p>Status: <span className="font-semibold">{customer.accountStatus}</span></p>
-      <p>Risk: <span className="text-red-500">{customer.riskCategory}</span></p>
+    <div className="bg-white/5 backdrop-blur-lg border border-white/10 rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 ease-in-out p-5 flex flex-col h-full text-gray-200">
+      <div className="flex-grow">
+        <h3 className="text-lg font-bold text-white truncate">{customer.name}</h3>
+        <p className="text-sm text-gray-400 mb-4">{customer.email}</p>
+        
+        <div className="flex items-center mb-2">
+          <AlertTriangle className="w-4 h-4 text-red-400 mr-2" />
+          <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${riskStyles[customer.riskCategory] || riskStyles.default}`}>
+            {customer.riskCategory.replace('-', ' ')}
+          </span>
+        </div>
+
+        <div className="flex items-center">
+          <CheckCircle className="w-4 h-4 text-gray-400 mr-2" />
+          <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${statusStyles[customer.accountStatus] || statusStyles.default}`}>
+            {customer.accountStatus}
+          </span>
+        </div>
+      </div>
 
       {chatActive && (
-        <div className="mt-2 p-2 bg-green-100 border border-green-400 rounded">
-          <p className="text-green-700 text-sm">✅ Chat session active</p>
+        <div className="mt-4 p-2.5 bg-green-500/20 border border-green-400/30 rounded-md flex items-center">
+          <CheckCircle className="w-5 h-5 text-green-400 mr-2" />
+          <p className="text-green-300 text-sm font-medium">Chat session active</p>
         </div>
       )}
 
-      <button
-        onClick={handleTriggerIntervention}
-        disabled={isTriggering || chatActive}
-        className={`mt-4 font-bold py-2 px-4 rounded ${
-          chatActive
-            ? 'bg-gray-500 text-white cursor-not-allowed'
-            : isTriggering
-            ? 'bg-yellow-500 text-white cursor-wait'
-            : 'bg-blue-500 hover:bg-blue-700 text-white'
-        }`}
-      >
-        {isTriggering
-          ? 'Starting Chat...'
-          : chatActive
-          ? 'Chat Active'
-          : 'Trigger Chat'}
-      </button>
+      <div className="mt-5 pt-5 border-t border-white/10">
+        <button
+          onClick={handleTriggerIntervention}
+          disabled={isTriggering || chatActive}
+          className={`w-full flex items-center justify-center font-bold py-2.5 px-4 rounded-lg transition-all duration-200 ease-in-out ${
+            chatActive
+              ? 'bg-gray-500/30 text-gray-400 cursor-not-allowed'
+              : isTriggering
+              ? 'bg-yellow-500/50 text-white cursor-wait'
+              : 'bg-blue-600/50 hover:bg-blue-600/80 text-white shadow-md hover:shadow-lg'
+          }`}
+        >
+          {isTriggering ? (
+            <>
+              <Zap className="w-5 h-5 mr-2 animate-pulse" />
+              Starting Chat...
+            </>
+          ) : chatActive ? (
+            <>
+              <MessageSquare className="w-5 h-5 mr-2" />
+              Chat Active
+            </>
+          ) : (
+            <>
+              <MessageSquare className="w-5 h-5 mr-2" />
+              Trigger Chat
+            </>
+          )}
+        </button>
+      </div>
     </div>
   );
 };

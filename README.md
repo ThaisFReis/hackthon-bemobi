@@ -1,4 +1,4 @@
-# AI Churn Prevention POC
+# AI Churn Prevention
 
 A full-stack proof-of-concept demonstrating AI-powered customer churn prevention through proactive chat conversations and real-time payment resolution. Built with React + TypeScript frontend and Node.js + Express backend.
 

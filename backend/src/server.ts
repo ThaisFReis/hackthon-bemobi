@@ -24,6 +24,7 @@ import customerRoutes from './api/customers';
 import queueRoutes from './api/queue';
 import metricsRoutes from './api/metrics';
 import metabaseRoutes from './api/metabase';
+import paymentRoutes from './api/payments';
 import { QueueService } from './services/queueService';
 import { LangchainGeminiService } from './services/langchainGeminiService';
 
@@ -77,6 +78,7 @@ app.use('/api/customers', customerRoutes);
 app.use('/api/queue', queueRoutes);
 app.use('/api/metrics', metricsRoutes);
 app.use('/api/metabase', metabaseRoutes);
+app.use('/api/payments', paymentRoutes);
 
 // Connect queue service to Socket.io for real-time events
 queueService.setEventEmitter((event: string, data: any) => {
@@ -90,6 +92,12 @@ io.on('connection', (socket) => {
   socket.on('join-chat', (chatSessionId) => {
     socket.join(chatSessionId);
     console.log(`User ${socket.id} joined chat session: ${chatSessionId}`);
+  });
+
+  // Join customer-specific room for real-time updates
+  socket.on('join-customer-room', (customerId) => {
+    socket.join(`customer-${customerId}`);
+    console.log(`User ${socket.id} joined customer room: customer-${customerId}`);
   });
 
   // Join queue monitoring room

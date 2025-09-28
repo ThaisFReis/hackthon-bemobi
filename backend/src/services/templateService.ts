@@ -168,19 +168,18 @@ export class TemplateService {
     // Payment failed logic
     if (customer.riskCategory === 'failed-payment' || customer.riskCategory === 'multiple-failures') {
       // Trigger immediately for utilities, within 24 hours for others
-      const lastFailure = customer.paymentMethod.lastFailureDate ?
-        new Date(customer.paymentMethod.lastFailureDate) : null;
+      if (customer.paymentMethod.lastFailureDate) {
+        const lastFailure = new Date(customer.paymentMethod.lastFailureDate);
+        const hoursSinceFailure = (new Date().getTime() - lastFailure.getTime()) / (1000 * 60 * 60);
+        const serviceCategory = this.getServiceCategory(customer.serviceProvider);
 
-      if (!lastFailure) return true; // No failure date, trigger immediately
-
-      const hoursSinceFailure = (now.getTime() - lastFailure.getTime()) / (1000 * 60 * 60);
-      const serviceCategory = this.getServiceCategory(customer.serviceProvider);
-
-      if (serviceCategory === 'utilities') {
-        return hoursSinceFailure <= 4; // 4 hours for utilities
-      } else {
-        return hoursSinceFailure <= 24; // 24 hours for others
+        if (serviceCategory === 'utilities') {
+          return hoursSinceFailure <= 4; // 4 hours for utilities
+        } else {
+          return hoursSinceFailure <= 24; // 24 hours for others
+        }
       }
+      return true; // No failure date, trigger immediately
     }
 
     return false;

@@ -5,6 +5,8 @@ import ChatSession from '../models/chatSession';
 import ChatMessage from '../models/chatMessage';
 import { prisma } from '../lib/prisma';
 import { v4 as uuidv4 } from 'uuid';
+import { paymentTransactionService } from './paymentTransactionService';
+import { contactLogService } from './contactLogService';
 
 // CustomerData interface matching LangchainGeminiService
 interface CustomerData {
@@ -74,6 +76,67 @@ export class QueueService {
     this.templateService = new TemplateService();
 
     console.log(`QueueService initialized with AI service: ${aiService.constructor.name}`);
+  }
+
+  // Refresh customer data from database
+  private async refreshCustomerData(customerId: string): Promise<Customer | null> {
+    try {
+      const dbCustomer = await prisma.customer.findUnique({
+        where: { id: customerId },
+        include: {
+          paymentMethods: true,
+          riskFactors: true,
+          interventions: {
+            orderBy: { date: 'desc' },
+            take: 5
+          },
+          paymentStatus: true
+        }
+      });
+
+      if (!dbCustomer) {
+        console.warn(`Customer ${customerId} not found in database during refresh`);
+        return null;
+      }
+
+      // Convert database customer back to Customer model
+      return new Customer({
+        id: dbCustomer.id,
+        name: dbCustomer.name,
+        email: dbCustomer.email,
+        phone: dbCustomer.phone,
+        accountStatus: dbCustomer.accountStatus.toLowerCase().replace('_', '-') as any,
+        riskCategory: dbCustomer.riskCategory.toLowerCase().replace('_', '-') as any,
+        riskSeverity: dbCustomer.riskSeverity.toLowerCase() as any,
+        lastPaymentDate: dbCustomer.lastPaymentDate?.toISOString(),
+        accountValue: Number(dbCustomer.accountValue),
+        customerSince: dbCustomer.customerSince.toISOString(),
+        serviceProvider: dbCustomer.serviceProvider,
+        serviceType: dbCustomer.serviceType,
+        billingCycle: dbCustomer.billingCycle.toLowerCase(),
+        nextBillingDate: dbCustomer.nextBillingDate.toISOString(),
+        paymentMethod: dbCustomer.paymentMethods?.[0] ? {
+          id: dbCustomer.paymentMethods[0].id,
+          cardType: dbCustomer.paymentMethods[0].cardType?.toLowerCase() || '',
+          lastFourDigits: '****', // Don't expose real data
+          expiryMonth: 0,
+          expiryYear: 0,
+          status: dbCustomer.paymentMethods[0].status.toLowerCase(),
+          failureCount: dbCustomer.paymentMethods[0].failureCount,
+          lastFailureDate: dbCustomer.paymentMethods[0].lastFailureDate?.toISOString(),
+          lastSuccessDate: dbCustomer.paymentMethods[0].lastSuccessDate?.toISOString()
+        } : undefined,
+        riskFactors: dbCustomer.riskFactors?.map(rf => rf.factor) || [],
+        interventionHistory: dbCustomer.interventions?.map(intervention => ({
+          date: intervention.date.toISOString(),
+          outcome: intervention.outcome.toLowerCase(),
+          notes: intervention.notes || ''
+        })) || []
+      });
+    } catch (error) {
+      console.error(`Error refreshing customer data for ${customerId}:`, error);
+      return null;
+    }
   }
 
   // Convert Customer to CustomerData format
@@ -182,52 +245,45 @@ export class QueueService {
   }
 
   // Check if customer can be contacted now
-  private canContactCustomer(queuedCustomer: QueuedCustomer): boolean {
-    const now = new Date();
+  private async canContactCustomer(queuedCustomer: QueuedCustomer): Promise<boolean> {
+    try {
+      const customerId = queuedCustomer.customer.id;
+      if (!customerId) return false;
 
-    // Check business rules first - should we trigger intervention?
-    const customerData = this.convertCustomerToCustomerData(queuedCustomer.customer);
-    if (!customerData || !this.templateService.shouldTriggerIntervention(customerData)) {
-      return false;
-    }
-
-    // Check if customer has reached daily contact limit
-    if (queuedCustomer.contactAttempts >= this.config.maxContactsPerDay) {
-      return false;
-    }
-
-    // Check minimum time between contacts
-    if (queuedCustomer.lastContactedAt) {
-      const hoursSinceLastContact = (now.getTime() - queuedCustomer.lastContactedAt.getTime()) / (1000 * 60 * 60);
-      if (hoursSinceLastContact < this.config.minTimeBetweenContacts) {
+      // Check if customer has outstanding payments
+      const hasOutstandingPayments = await paymentTransactionService.hasOutstandingPayments(customerId);
+      if (!hasOutstandingPayments) {
+        console.log(`Customer ${customerId} has no outstanding payments - removing from queue`);
+        this.removeCustomerFromQueue(customerId);
         return false;
       }
-    }
 
-    // Check if customer is already in an active session
-    const activeSession = Array.from(this.activeSessions.values())
-      .find(session => session.customerId === queuedCustomer.customer.id);
-    if (activeSession) {
-      return false;
-    }
-
-    // Check intervention history to avoid over-contacting
-    if (queuedCustomer.customer.interventionHistory && queuedCustomer.customer.interventionHistory.length > 0) {
-      const lastIntervention = queuedCustomer.customer.interventionHistory[queuedCustomer.customer.interventionHistory.length - 1];
-      if (lastIntervention && lastIntervention.date) {
-        const lastInterventionDate = new Date(lastIntervention.date);
-        const hoursSinceLastIntervention = (now.getTime() - lastInterventionDate.getTime()) / (1000 * 60 * 60);
-
-        // Don't contact again within 24 hours if last intervention failed
-        if (lastIntervention.outcome === 'failed' || lastIntervention.outcome === 'no_answer') {
-          if (hoursSinceLastIntervention < 24) {
-            return false;
-          }
-        }
+      // Check contact restrictions and frequency rules
+      const contactPermission = await contactLogService.canContactCustomer(customerId);
+      if (!contactPermission.canContact) {
+        console.log(`Cannot contact customer ${customerId}: ${contactPermission.reason}`);
+        return false;
       }
-    }
 
-    return true;
+      // Check business rules - should we trigger intervention?
+      const customerData = this.convertCustomerToCustomerData(queuedCustomer.customer);
+      if (!customerData || !this.templateService.shouldTriggerIntervention(customerData)) {
+        return false;
+      }
+
+      // Check if customer is already in an active session
+      const activeSession = Array.from(this.activeSessions.values())
+        .find(session => session.customerId === customerId);
+      if (activeSession) {
+        return false;
+      }
+
+      return true;
+
+    } catch (error) {
+      console.error('Error checking contact permissions:', error);
+      return false; // Default to false to avoid inappropriate contact
+    }
   }
 
   // Process the queue and initiate contacts
@@ -251,7 +307,7 @@ export class QueueService {
         break;
       }
 
-      if (!this.canContactCustomer(queuedCustomer)) {
+      if (!(await this.canContactCustomer(queuedCustomer))) {
         continue;
       }
 
@@ -310,10 +366,43 @@ export class QueueService {
       // Store customer data for AI access
       (chatSession as any).customerData = customer;
 
+      // Log the contact attempt
+      await contactLogService.logContact({
+        customerId: customer.id!,
+        contactMethod: 'AI_CHAT',
+        notes: `Autonomous AI contact initiated for ${paymentIssue}`,
+        agentId: 'ai_queue_service',
+        sessionId: sessionId
+      });
+
       try {
         // Generate initial AI message using the AI service
         console.log('Generating initial message...');
-        const customerData = this.convertCustomerToCustomerData(customer);
+
+        // Fetch fresh customer data from database before AI interaction
+        const freshCustomer = await this.refreshCustomerData(customer.id!);
+        const customerData = freshCustomer ? this.convertCustomerToCustomerData(freshCustomer) : this.convertCustomerToCustomerData(customer);
+
+        // Check if customer still needs intervention after fresh data fetch
+        if (freshCustomer && !freshCustomer.requiresIntervention()) {
+          console.log(`Customer ${customer.id} no longer requires intervention after data refresh. Skipping AI contact.`);
+
+          // Remove from queue since problem is resolved
+          this.removeCustomerFromQueue(customer.id!);
+
+          // Create intervention record indicating no action needed
+          await prisma.intervention.create({
+            data: {
+              customerId: customer.id!,
+              outcome: 'SUCCESS',
+              notes: 'Customer payment issue resolved before AI contact. No intervention needed.',
+              agentId: 'ai_queue_service_auto_resolved'
+            }
+          });
+
+          return; // Exit early
+        }
+
         const initialMessage = await this.aiService.generateInitialMessage(chatSession, customerData);
         console.log('Initial message generated:', initialMessage.content);
 
@@ -431,14 +520,9 @@ export class QueueService {
             accountStatus: 'AT_RISK'
           },
           include: {
-            paymentMethods: true,
             riskFactors: true,
-            interventions: {
-              orderBy: {
-                date: 'desc'
-              }
-            },
-            paymentStatus: true
+            chatSessions: true,
+            paymentTransactions: true
           }
         });
 
