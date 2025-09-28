@@ -86,6 +86,41 @@ enum CardType {
   HIPERCARD
 }
 
+enum PaymentTransactionStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
+enum ContactMethod {
+  AI_CHAT
+  SMS
+  EMAIL
+  PHONE
+  WHATSAPP
+  PUSH_NOTIFICATION
+}
+
+enum ContactOutcome {
+  SUCCESSFUL
+  NO_ANSWER
+  DECLINED
+  PAYMENT_RESOLVED
+  RESCHEDULED
+  DO_NOT_CONTACT
+}
+
+enum ContactRestrictionType {
+  TEMPORARY_COOLDOWN
+  DO_NOT_CONTACT
+  PREFERRED_HOURS_ONLY
+  PAYMENT_RESOLVED
+  CUSTOMER_REQUEST
+}
+
 model Customer {
   id                String        @id @default(cuid())
   name              String        @db.VarChar(255)
@@ -105,60 +140,18 @@ model Customer {
   updatedAt         DateTime      @updatedAt
 
   // Relacionamentos
-  paymentStatus     PaymentStatus?
-  paymentMethods    PaymentMethod[]
-  riskFactors       RiskFactor[]
-  chatSessions      ChatSession[]
-  interventions     Intervention[]
+  riskFactors         RiskFactor[]
+  chatSessions        ChatSession[]
+  interventions       Intervention[]
+  paymentTransactions PaymentTransaction[]
+  contactLog          CustomerContactLog[]
+  contactRestrictions ContactRestriction[]
 
   @@index([email])
   @@index([accountStatus])
   @@index([riskCategory, riskSeverity])
   @@index([nextBillingDate])
   @@map("customers")
-}
-
-model PaymentMethod {
-  id                String            @id @default(cuid())
-  customerId        String
-  // Store only payment gateway token/reference - never actual card details
-  paymentToken      String            @unique @db.VarChar(255) // Token from payment processor
-  cardType          CardType?
-  cardBrand         String?           @db.VarChar(50) // e.g., "Visa", "Mastercard"
-  status            PaymentStatusType @default(PENDING)
-  failureCount      Int               @default(0)
-  lastFailureDate   DateTime?
-  lastSuccessDate   DateTime?
-  isDefault         Boolean           @default(false)
-  // Store payment processor details instead of sensitive data
-  processorId       String?           @db.VarChar(100) // Payment gateway identifier
-  fingerprint       String?           @db.VarChar(255) // Card fingerprint for duplicate detection
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
-
-  customer          Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
-
-  @@index([customerId])
-  @@index([status])
-  @@index([paymentToken])
-  @@map("payment_methods")
-}
-
-model PaymentStatus {
-  id                String        @id @default(cuid())
-  customerId        String        @unique
-  status            PaymentStatusType
-  failureCount      Int           @default(0)
-  lastFailureDate   DateTime?
-  lastSuccessDate   DateTime?
-  failureReason     FailureReason?
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
-
-  customer          Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
-
-  @@index([status])
-  @@map("payment_status")
 }
 
 model RiskFactor {
@@ -187,6 +180,7 @@ model ChatSession {
 
   customer          Customer      @relation(fields: [customerId], references: [id])
   messages          ChatMessage[]
+  paymentTransaction PaymentTransaction?
 
   @@index([customerId])
   @@index([status])
@@ -226,4 +220,74 @@ model Intervention {
   @@index([date])
   @@index([outcome])
   @@map("interventions")
+}
+
+model PaymentTransaction {
+  id                  String                    @id @default(cuid())
+  customerId          String
+  amount              Decimal                   @db.Decimal(10, 2)
+  currency            String                    @default("BRL") @db.VarChar(3)
+  status              PaymentTransactionStatus  @default(PENDING)
+  transactionDate     DateTime                  @default(now())
+  paidDate            DateTime?                 // When payment was actually received
+  description         String?                   @db.Text
+  chatSessionId       String?                   @unique
+  chatSession         ChatSession?              @relation(fields: [chatSessionId], references: [id])
+
+  customer            Customer       @relation(fields: [customerId], references: [id])
+
+  @@index([customerId])
+  @@index([status])
+  @@index([transactionDate])
+  @@index([paidDate])
+  @@map("payment_transactions")
+}
+
+model CustomerContactLog {
+  id                String            @id @default(cuid())
+  customerId        String
+  contactMethod     ContactMethod
+  contactDate       DateTime          @default(now())
+  outcome           ContactOutcome?
+  notes             String?           @db.Text
+  agentId           String?           @db.VarChar(100) // AI agent, human agent, or system
+  sessionId         String?           @db.VarChar(255) // Chat session or call ID
+  contactDuration   Int?              // Duration in seconds
+  nextContactDate   DateTime?         // When next contact is scheduled/allowed
+  successful        Boolean           @default(false)
+  paymentResolved   Boolean           @default(false)
+  metadata          Json?             // Additional context data
+  createdAt         DateTime          @default(now())
+
+  customer          Customer @relation(fields: [customerId], references: [id])
+
+  @@index([customerId])
+  @@index([contactDate])
+  @@index([contactMethod])
+  @@index([outcome])
+  @@index([nextContactDate])
+  @@map("customer_contact_log")
+}
+
+model ContactRestriction {
+  id                String                  @id @default(cuid())
+  customerId        String
+  restrictionType   ContactRestrictionType
+  startDate         DateTime                @default(now())
+  endDate           DateTime?               // NULL means indefinite
+  reason            String?                 @db.Text
+  appliedBy         String?                 @db.VarChar(100) // Agent or system that applied restriction
+  isActive          Boolean                 @default(true)
+  metadata          Json?                   // Additional restriction parameters
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+
+  customer          Customer @relation(fields: [customerId], references: [id])
+
+  @@index([customerId])
+  @@index([restrictionType])
+  @@index([startDate])
+  @@index([endDate])
+  @@index([isActive])
+  @@map("contact_restrictions")
 }

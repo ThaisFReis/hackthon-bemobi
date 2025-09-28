@@ -21,17 +21,6 @@ function convertDbCustomerToModel(dbCustomer: any): Customer {
     serviceType: dbCustomer.serviceType,
     billingCycle: dbCustomer.billingCycle.toLowerCase(),
     nextBillingDate: dbCustomer.nextBillingDate.toISOString(),
-    paymentMethod: dbCustomer.paymentMethods?.[0] ? {
-      id: dbCustomer.paymentMethods[0].id,
-      cardType: dbCustomer.paymentMethods[0].cardType?.toLowerCase() || '',
-      lastFourDigits: '****', // Don't expose real data
-      expiryMonth: 0, // Don't expose real data
-      expiryYear: 0, // Don't expose real data
-      status: dbCustomer.paymentMethods[0].status.toLowerCase(),
-      failureCount: dbCustomer.paymentMethods[0].failureCount,
-      lastFailureDate: dbCustomer.paymentMethods[0].lastFailureDate?.toISOString(),
-      lastSuccessDate: dbCustomer.paymentMethods[0].lastSuccessDate?.toISOString()
-    } : undefined,
     riskFactors: dbCustomer.riskFactors?.map((rf: any) => rf.factor) || [],
     interventionHistory: dbCustomer.interventions?.map((intervention: any) => ({
       date: intervention.date.toISOString(),
@@ -46,10 +35,8 @@ router.get('/', async (req, res) => {
   try {
     const dbCustomers = await prisma.customer.findMany({
       include: {
-        paymentMethods: true,
         riskFactors: true,
         interventions: true,
-        paymentStatus: true
       },
       orderBy: {
         name: 'asc'
@@ -75,10 +62,8 @@ router.get('/status/:status', async (req, res) => {
         accountStatus: accountStatus as any
       },
       include: {
-        paymentMethods: true,
         riskFactors: true,
         interventions: true,
-        paymentStatus: true
       },
       orderBy: {
         name: 'asc'
@@ -103,14 +88,12 @@ router.get('/:customerId', async (req, res) => {
         id: customerId
       },
       include: {
-        paymentMethods: true,
         riskFactors: true,
         interventions: {
           orderBy: {
             date: 'desc'
           }
         },
-        paymentStatus: true
       }
     });
 

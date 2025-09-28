@@ -46,28 +46,13 @@ const ChatPage: React.FC = () => {
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4" style={{height: 'calc(100vh - 4rem)'}}>
-      <div className="md:col-span-2 h-full">
+    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-2 sm:p-4">
+      <div className="w-full max-w-sm mx-auto h-screen max-h-[600px] sm:max-h-[700px]">
         <ChatInterface
           sessionId={sessionId}
+          customerId={sessionData?.customerId}
           customerName={sessionData?.customerName}
         />
-      </div>
-      <div className="h-full">
-        <div className="bg-white rounded-lg border p-4 h-full">
-          <h3 className="font-semibold mb-4">Session Info</h3>
-          {sessionData && (
-            <div className="space-y-2 text-sm">
-              <div><strong>Customer:</strong> {sessionData.customerName}</div>
-              <div><strong>Session ID:</strong> {sessionId}</div>
-              <div><strong>Status:</strong> {sessionData.status}</div>
-              <div><strong>Started:</strong> {new Date(sessionData.startTime).toLocaleString()}</div>
-              {sessionData.paymentIssue && (
-                <div><strong>Issue:</strong> {sessionData.paymentIssue}</div>
-              )}
-            </div>
-          )}
-        </div>
       </div>
     </div>
   );

@@ -88,8 +88,6 @@ async function main() {
   await prisma.chatMessage.deleteMany();
   await prisma.chatSession.deleteMany();
   await prisma.riskFactor.deleteMany();
-  await prisma.paymentMethod.deleteMany();
-  await prisma.paymentStatus.deleteMany();
   await prisma.customer.deleteMany();
 
   console.log('👥 Seeding customers...');
@@ -115,50 +113,6 @@ async function main() {
         customerSince: new Date(customerData.customerSince),
       }
     });
-
-    // Create payment status
-    if (customerData.paymentStatus) {
-      await prisma.paymentStatus.create({
-        data: {
-          customerId: customer.id,
-          status: mapToEnum(customerData.paymentStatus.status, paymentStatusMap) as any,
-          failureCount: customerData.paymentStatus.failureCount || 0,
-          lastFailureDate: customerData.paymentStatus.lastFailureDate
-            ? new Date(customerData.paymentStatus.lastFailureDate)
-            : null,
-          lastSuccessDate: customerData.paymentStatus.lastSuccessDate
-            ? new Date(customerData.paymentStatus.lastSuccessDate)
-            : null,
-          failureReason: customerData.paymentStatus.failureReason
-            ? mapToEnum(customerData.paymentStatus.failureReason, failureReasonMap) as any
-            : null,
-        }
-      });
-    }
-
-    // Create payment method (tokenized, no sensitive data)
-    if ((customerData as any).paymentMethod) {
-      const paymentMethod = (customerData as any).paymentMethod;
-      await prisma.paymentMethod.create({
-        data: {
-          customerId: customer.id,
-          paymentToken: `token_${paymentMethod.id}`, // Simulated token
-          cardType: paymentMethod.cardType ? mapToEnum(paymentMethod.cardType, cardTypeMap) as any : null,
-          cardBrand: paymentMethod.cardType ? paymentMethod.cardType.toUpperCase() : null,
-          status: mapToEnum(paymentMethod.status || 'pending', paymentStatusMap) as any,
-          failureCount: paymentMethod.failureCount || 0,
-          lastFailureDate: paymentMethod.lastFailureDate
-            ? new Date(paymentMethod.lastFailureDate)
-            : null,
-          lastSuccessDate: paymentMethod.lastSuccessDate
-            ? new Date(paymentMethod.lastSuccessDate)
-            : null,
-          isDefault: true,
-          processorId: `processor_${paymentMethod.id}`,
-          fingerprint: `fp_${Math.random().toString(36).substring(2, 11)}`,
-        }
-      });
-    }
 
     // Create risk factors
     if ((customerData as any).riskFactors && Array.isArray((customerData as any).riskFactors)) {
