@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { io, Socket } from 'socket.io-client';
+import { io } from 'socket.io-client';
 import { QueueStatus, QueueConfig } from '../types/queue';
+import LangSmithDashboard from './LangSmithDashboard';
 
 // ... (interfaces remain the same)
 
@@ -9,6 +10,7 @@ const QueueDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [configEditing, setConfigEditing] = useState(false);
   const [tempConfig, setTempConfig] = useState<QueueConfig | null>(null);
+  const [activeTab, setActiveTab] = useState<'queue' | 'langsmith'>('queue');
 
   useEffect(() => {
     // Initialize socket connection
@@ -148,35 +150,62 @@ const QueueDashboard: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Tab Navigation */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between">
-        <h2 className="text-3xl font-bold text-white">AI Queue Management</h2>
-        <div className="flex space-x-2 mt-4 sm:mt-0">
+        <div className="flex space-x-1 bg-white/5 backdrop-blur-lg rounded-lg p-1 border border-white/10">
           <button
-            onClick={handleRefreshQueue}
-            className="px-4 py-2 bg-blue-500/50 text-white rounded-lg hover:bg-blue-500/80 border border-blue-400/50 transition"
+            onClick={() => setActiveTab('queue')}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              activeTab === 'queue'
+                ? 'bg-blue-500/50 text-white border border-blue-400/50'
+                : 'text-gray-400 hover:text-white hover:bg-white/10'
+            }`}
           >
-            Refresh Queue
+            Queue Management
           </button>
-          {queueStatus.config.enabled ? (
-            <button
-              onClick={handleStopAutonomous}
-              className="px-4 py-2 bg-red-500/50 text-white rounded-lg hover:bg-red-500/80 border border-red-400/50 transition"
-            >
-              Stop Autonomous Mode
-            </button>
-          ) : (
-            <button
-              onClick={handleStartAutonomous}
-              className="px-4 py-2 bg-green-500/50 text-white rounded-lg hover:bg-green-500/80 border border-green-400/50 transition"
-            >
-              Start Autonomous Mode
-            </button>
-          )}
+          <button
+            onClick={() => setActiveTab('langsmith')}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              activeTab === 'langsmith'
+                ? 'bg-green-500/50 text-white border border-green-400/50'
+                : 'text-gray-400 hover:text-white hover:bg-white/10'
+            }`}
+          >
+            LangSmith Monitoring
+          </button>
         </div>
+        {activeTab === 'queue' && queueStatus && (
+          <div className="flex space-x-2 mt-4 sm:mt-0">
+            <button
+              onClick={handleRefreshQueue}
+              className="px-4 py-2 bg-blue-500/50 text-white rounded-lg hover:bg-blue-500/80 border border-blue-400/50 transition"
+            >
+              Refresh Queue
+            </button>
+            {queueStatus.config.enabled ? (
+              <button
+                onClick={handleStopAutonomous}
+                className="px-4 py-2 bg-red-500/50 text-white rounded-lg hover:bg-red-500/80 border border-red-400/50 transition"
+              >
+                Stop Autonomous Mode
+              </button>
+            ) : (
+              <button
+                onClick={handleStartAutonomous}
+                className="px-4 py-2 bg-green-500/50 text-white rounded-lg hover:bg-green-500/80 border border-green-400/50 transition"
+              >
+                Start Autonomous Mode
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Status Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      {/* Tab Content */}
+      {activeTab === 'queue' ? (
+        <>
+          {/* Status Overview */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         {/* Glassmorphism Stat Cards */}
         <div className="bg-white/5 backdrop-blur-lg p-5 rounded-xl border border-white/10">
           <h3 className="text-sm font-medium text-gray-400">Queue Length</h3>
@@ -370,6 +399,10 @@ const QueueDashboard: React.FC = () => {
             </table>
           </div>
         </div>
+      )}
+        </>
+      ) : (
+        <LangSmithDashboard />
       )}
     </div>
   );

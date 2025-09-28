@@ -1,6 +1,7 @@
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { BaseMessage, HumanMessage, AIMessage, SystemMessage } from '@langchain/core/messages';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
+import { Client } from 'langsmith';
 import ChatMessage from '../models/chatMessage';
 import { TemplateService } from './templateService';
 
@@ -20,6 +21,8 @@ interface CustomerData {
 }
 
 const geminiApiKey = process.env.GEMINI_API_KEY;
+const langsmithApiKey = process.env.LANGCHAIN_API_KEY;
+const langsmithProject = process.env.LANGCHAIN_PROJECT || 'gemini-churn-prevention';
 
 if (!geminiApiKey) {
   throw new Error('GEMINI_API_KEY is not set in environment variables.');
@@ -28,6 +31,7 @@ if (!geminiApiKey) {
 export class LangchainGeminiService {
   private model: ChatGoogleGenerativeAI;
   private templateService: TemplateService;
+  private langsmithClient: Client | null;
 
   constructor() {
     this.model = new ChatGoogleGenerativeAI({
@@ -38,9 +42,27 @@ export class LangchainGeminiService {
     });
 
     this.templateService = new TemplateService();
+
+    // Initialize LangSmith client if API key is available
+    this.langsmithClient = langsmithApiKey
+      ? new Client({ apiKey: langsmithApiKey })
+      : null;
+
+    if (this.langsmithClient) {
+      console.log(`LangSmith tracing enabled for project: ${langsmithProject}`);
+    } else {
+      console.log('LangSmith tracing disabled - no API key provided');
+    }
   }
 
   public async generateInitialMessage(chatSession: any, customerData: CustomerData | null = null): Promise<ChatMessage> {
+    const runId = this.langsmithClient ? await this.startLangSmithRun('generate_initial_message', {
+      customerId: customerData?.id,
+      customerName: customerData?.name,
+      serviceProvider: customerData?.serviceProvider,
+      riskCategory: customerData?.riskCategory,
+    }) : null;
+
     try {
       const customerContext = this.buildCustomerContext(customerData);
       const serviceCategory = customerData?.serviceProvider ? this.getServiceCategory(customerData.serviceProvider) : 'telecom';
@@ -61,18 +83,30 @@ export class LangchainGeminiService {
 
       if (!aiResponseContent || aiResponseContent.trim() === '') {
         console.warn('AI returned empty initial message, using fallback');
+        if (runId) await this.endLangSmithRun(runId, { error: 'Empty response, using fallback' });
         return this.generateFallbackMessage(chatSession, customerData);
       }
 
-      return new ChatMessage({
+      const chatMessage = new ChatMessage({
         chatSessionId: chatSession.id,
         sender: 'ai',
         content: aiResponseContent.trim(),
         timestamp: new Date(),
         messageType: 'greeting',
       });
+
+      if (runId) {
+        await this.endLangSmithRun(runId, {
+          output: aiResponseContent.trim(),
+          messageType: 'greeting',
+          success: true,
+        });
+      }
+
+      return chatMessage;
     } catch (error) {
       console.error('Error generating AI message with Gemini:', error);
+      if (runId) await this.endLangSmithRun(runId, { error: error instanceof Error ? error.message : 'Unknown error' });
       return this.generateFallbackMessage(chatSession, customerData);
     }
   }
@@ -110,8 +144,14 @@ export class LangchainGeminiService {
     history: ChatMessage[],
     currentMessage: ChatMessage
   ): Promise<ChatMessage> {
+    const runId = this.langsmithClient ? await this.startLangSmithRun('generate_response', {
+      sessionId: currentMessage.chatSessionId,
+      messageContent: currentMessage.content,
+      historyLength: history.length,
+    }) : null;
+
     try {
-      let systemPrompt = `Você é um assistente de atendimento da Bemobi via WhatsApp, especializado em resolver problemas de pagamento de forma rápida e amigável.
+      let systemPrompt = `Você é um assistente de atendimento da Bemobi via WhatsApp, especializado em resolver problemas de pagamento de forma rápida e amigável. Sempre tente convencer o cliente a fazer o pagamento.
 
 #REGRAS OBRIGATÓRIAS:
 1. SEMPRE responda com conteúdo útil e positivo - nunca deixe a resposta vazia
@@ -194,22 +234,39 @@ IMPORTANTE:
         });
       }
 
-      return new ChatMessage({
+      const chatMessage = new ChatMessage({
         chatSessionId: currentMessage.chatSessionId,
         sender: 'ai',
         content: aiResponseContent.trim(),
         timestamp: new Date(),
         messageType: 'response',
       });
+
+      if (runId) {
+        await this.endLangSmithRun(runId, {
+          output: aiResponseContent.trim(),
+          messageType: 'response',
+          success: true,
+        });
+      }
+
+      return chatMessage;
     } catch (error) {
       console.error('Error communicating with Gemini AI:', error);
-      return new ChatMessage({
+
+      const errorMessage = new ChatMessage({
         chatSessionId: currentMessage.chatSessionId,
         sender: 'ai',
         content: "Desculpe, estou com dificuldades para processar sua mensagem no momento. Pode tentar novamente?",
         timestamp: new Date(),
         messageType: 'error',
       });
+
+      if (runId) {
+        await this.endLangSmithRun(runId, { error: error instanceof Error ? error.message : 'Unknown error' });
+      }
+
+      return errorMessage;
     }
   }
 
@@ -263,5 +320,78 @@ IMPORTANTE:
       timestamp: new Date(),
       messageType: 'greeting',
     });
+  }
+
+  // LangSmith helper methods
+  private async startLangSmithRun(runType: string, inputs: any): Promise<string | null> {
+    if (!this.langsmithClient) return null;
+
+    try {
+      const run = await this.langsmithClient.createRun({
+        name: runType,
+        run_type: 'llm',
+        inputs,
+        project_name: langsmithProject,
+      } as any);
+      return (run as any)?.id || null;
+    } catch (error) {
+      console.error('Error starting LangSmith run:', error);
+      return null;
+    }
+  }
+
+  private async endLangSmithRun(runId: string, outputs: any): Promise<void> {
+    if (!this.langsmithClient) return;
+
+    try {
+      await this.langsmithClient.updateRun(runId, {
+        outputs,
+        end_time: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error('Error ending LangSmith run:', error);
+    }
+  }
+
+  // Get LangSmith project stats
+  public async getLangSmithStats(): Promise<any> {
+    if (!this.langsmithClient) {
+      return { error: 'LangSmith not configured' };
+    }
+
+    try {
+      // Get recent runs for the project
+      const runs = this.langsmithClient.listRuns({
+        projectName: langsmithProject,
+        limit: 20,
+      });
+
+      const recentRuns: any[] = [];
+      let count = 0;
+      for await (const run of runs) {
+        if (count >= 20) break;
+        recentRuns.push(run);
+        count++;
+      }
+
+      return {
+        projectName: langsmithProject,
+        totalRuns: recentRuns.length,
+        recentRuns: recentRuns.map(run => ({
+          id: run.id,
+          name: run.name,
+          status: run.status,
+          startTime: run.start_time,
+          endTime: run.end_time,
+          inputs: run.inputs,
+          outputs: run.outputs,
+          error: run.error,
+        })),
+        successRate: recentRuns.filter(run => !run.error).length / Math.max(recentRuns.length, 1),
+      };
+    } catch (error) {
+      console.error('Error getting LangSmith stats:', error);
+      return { error: error instanceof Error ? error.message : 'Unknown error' };
+    }
   }
 }

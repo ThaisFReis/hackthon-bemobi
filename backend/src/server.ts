@@ -8,12 +8,16 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:3000",
+    origin: ["http://localhost:3000", "http://localhost:3002"],
     methods: ["GET", "POST"]
   }
 });
 
-app.use(cors());
+app.use(cors({
+  origin: ["http://localhost:3000", "http://localhost:3002"],
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  allowedHeaders: ["Content-Type", "Authorization"]
+}));
 app.use(express.json());
 
 // Make io available to routes
@@ -23,6 +27,8 @@ import chatRoutes from './api/chat';
 import customerRoutes from './api/customers';
 import queueRoutes from './api/queue';
 import paymentRoutes from './api/payments';
+import langsmithRoutes from './api/langsmith';
+import analyticsRoutes from './api/analytics';
 import { QueueService } from './services/queueService';
 import { LangchainGeminiService } from './services/langchainGeminiService';
 
@@ -75,6 +81,8 @@ app.use('/api/chat', chatRoutes);
 app.use('/api/customers', customerRoutes);
 app.use('/api/queue', queueRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/langsmith', langsmithRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
 // Connect queue service to Socket.io for real-time events
 queueService.setEventEmitter((event: string, data: any) => {
