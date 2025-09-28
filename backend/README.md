@@ -50,7 +50,7 @@ npm run build        # Build TypeScript
 npm start            # Start production server
 ```
 
-The server will start on `https://hackthon-bemobi-1.onrender.com1`
+The server will start on `https://hackthon-bemobi-1.onrender.com`
 
 ## 🧪 Testing
 

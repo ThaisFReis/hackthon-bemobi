@@ -45,8 +45,8 @@ const LangSmithDashboard: React.FC = () => {
   const fetchLangSmithData = async () => {
     try {
       const [statsResponse, healthResponse] = await Promise.all([
-        fetch('https://hackthon-bemobi-1.onrender.com1/api/langsmith/stats'),
-        fetch('https://hackthon-bemobi-1.onrender.com1/api/langsmith/health')
+        fetch('https://hackthon-bemobi-1.onrender.com/api/langsmith/stats'),
+        fetch('https://hackthon-bemobi-1.onrender.com/api/langsmith/health')
       ]);
 
       const statsData = await statsResponse.json();

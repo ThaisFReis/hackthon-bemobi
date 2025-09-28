@@ -90,7 +90,7 @@ const ROIDashboard: React.FC = () => {
       }
 
       const response = await fetch(
-        `https://hackthon-bemobi-1.onrender.com1/api/analytics/roi?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`
+        `https://hackthon-bemobi-1.onrender.com/api/analytics/roi?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`
       );
 
       if (response.ok) {

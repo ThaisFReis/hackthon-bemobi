@@ -14,7 +14,7 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/api': {
-        target: 'https://hackthon-bemobi-1.onrender.com1',
+        target: 'https://hackthon-bemobi-1.onrender.com',
         changeOrigin: true,
       },
     },

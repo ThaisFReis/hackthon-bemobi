@@ -192,8 +192,8 @@ xl: 1280px  /* Extra large devices */
 ### Environment Variables
 Create `.env.local` for local development:
 ```bash
-VITE_API_URL=https://hackthon-bemobi-1.onrender.com1
-VITE_SOCKET_URL=https://hackthon-bemobi-1.onrender.com1
+VITE_API_URL=https://hackthon-bemobi-1.onrender.com
+VITE_SOCKET_URL=https://hackthon-bemobi-1.onrender.com
 ```
 
 ### Vite Configuration

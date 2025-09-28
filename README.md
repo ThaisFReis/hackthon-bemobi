@@ -34,7 +34,7 @@ cp backend/.env.example backend/.env
 # Start both backend and frontend in development mode
 npm run dev
 ```
-The backend will be running on `https://hackthon-bemobi-1.onrender.com1` and the frontend on `https://hackthon-bemobi-1.onrender.com0`.
+The backend will be running on `https://hackthon-bemobi-1.onrender.com` and the frontend on `https://hackthon-bemobi-1.onrender.com0`.
 
 ### Testing
 ```bash

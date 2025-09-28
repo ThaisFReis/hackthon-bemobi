@@ -87,7 +87,7 @@ const ConversationFlowAnalysis: React.FC = () => {
 
       // Fetch pattern analysis
       const patternsResponse = await fetch(
-        `https://hackthon-bemobi-1.onrender.com1/api/analytics/patterns?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`
+        `https://hackthon-bemobi-1.onrender.com/api/analytics/patterns?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`
       );
 
       if (patternsResponse.ok) {
