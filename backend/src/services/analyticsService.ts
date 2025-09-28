@@ -106,7 +106,6 @@ export class AnalyticsService {
         include: {
           customer: true,
           messages: true,
-          interventions: true,
         },
       });
 
@@ -147,16 +146,15 @@ export class AnalyticsService {
         include: {
           customer: true,
           messages: true,
-          interventions: true,
         },
       });
 
       // Categorize by outcome
       const successful = conversations.filter(c =>
-        c.interventions.some(i => i.outcome === 'SUCCESS')
+        c.outcome === 'payment_completed' || c.outcome === 'resolved'
       );
       const failed = conversations.filter(c =>
-        c.interventions.some(i => i.outcome === 'FAILED')
+        c.outcome === 'customer_dropped' || c.outcome === 'escalated'
       );
 
       // Analyze patterns
@@ -178,19 +176,21 @@ export class AnalyticsService {
   // Calculate ROI and business impact
   async calculateROI(startDate: Date, endDate: Date): Promise<ROIAnalysis> {
     try {
-      // Get financial data
-      const interventions = await prisma.intervention.findMany({
+      // Get financial data from chat sessions
+      const sessions = await prisma.chatSession.findMany({
         where: {
-          date: { gte: startDate, lte: endDate },
+          startTime: { gte: startDate, lte: endDate },
         },
         include: {
           customer: true,
         },
       });
 
-      const successfulInterventions = interventions.filter(i => i.outcome === 'SUCCESS');
-      const totalRevenueRecovered = successfulInterventions.reduce(
-        (sum, intervention) => sum + Number(intervention.customer.accountValue),
+      const successfulSessions = sessions.filter(s =>
+        s.outcome === 'payment_completed' || s.outcome === 'resolved'
+      );
+      const totalRevenueRecovered = successfulSessions.reduce(
+        (sum, session) => sum + Number(session.customer?.accountValue || 0),
         0
       ) / 100; // Convert from cents
 
@@ -207,8 +207,8 @@ export class AnalyticsService {
 
       const benefits = {
         revenueRecovered: totalRevenueRecovered,
-        customerRetention: this.calculateRetentionValue(successfulInterventions),
-        operationalSavings: this.calculateOperationalSavings(interventions.length),
+        customerRetention: this.calculateRetentionValue(successfulSessions),
+        operationalSavings: this.calculateOperationalSavings(sessions.length),
         total: 0,
       };
       benefits.total = benefits.revenueRecovered + benefits.customerRetention + benefits.operationalSavings;
@@ -251,13 +251,12 @@ export class AnalyticsService {
         startTime: { gte: startOfDay },
       },
       include: {
-        interventions: true,
         customer: true,
       },
     });
 
     const successfulToday = todaysSessions.filter(s =>
-      s.interventions.some(i => i.outcome === 'SUCCESS')
+      s.outcome === 'payment_completed' || s.outcome === 'resolved'
     );
 
     const revenueToday = successfulToday.reduce(
@@ -291,7 +290,7 @@ export class AnalyticsService {
 
       const runsArray: any[] = [];
       for await (const run of runs) {
-        const runDate = new Date(run.start_time);
+        const runDate = new Date(run.start_time || new Date());
         if (runDate >= startDate && runDate <= endDate) {
           runsArray.push(run);
         }
@@ -318,17 +317,17 @@ export class AnalyticsService {
         case 'week':
           const weekStart = new Date(date);
           weekStart.setDate(date.getDate() - date.getDay());
-          key = weekStart.toISOString().split('T')[0];
+          key = weekStart.toISOString().split('T')[0] || weekStart.toISOString();
           break;
         case 'month':
           key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
           break;
         default: // day
-          key = date.toISOString().split('T')[0];
+          key = date.toISOString().split('T')[0] || date.toISOString();
       }
 
       if (!grouped[key]) grouped[key] = [];
-      grouped[key].push(session);
+      grouped[key]?.push(session);
     });
 
     return grouped;
@@ -336,7 +335,7 @@ export class AnalyticsService {
 
   private async calculatePeriodMetrics(sessions: any[], langsmithRuns: any[]): Promise<Omit<PerformanceMetrics, 'period'>> {
     const successfulSessions = sessions.filter(s =>
-      s.interventions.some((i: any) => i.outcome === 'SUCCESS')
+      s.outcome === 'payment_completed' || s.outcome === 'resolved'
     );
 
     const totalTokens = langsmithRuns.reduce((sum, run) => {
@@ -398,7 +397,7 @@ export class AnalyticsService {
       segments[segment].conversations++;
       segments[segment].totalValue += Number(customer?.accountValue || 0);
 
-      if (session.interventions.some((i: any) => i.outcome === 'SUCCESS')) {
+      if (session.outcome === 'payment_completed' || session.outcome === 'resolved') {
         segments[segment].successful++;
       }
     });
@@ -426,12 +425,15 @@ export class AnalyticsService {
       hourCounts[hour] = (hourCounts[hour] || 0) + 1;
     });
 
-    const bestHour = Object.entries(hourCounts).reduce((a, b) =>
-      hourCounts[Number(a[0])] > hourCounts[Number(b[0])] ? a : b
-    );
+    const hourEntries = Object.entries(hourCounts);
+    if (hourEntries.length > 0) {
+      const bestHour = hourEntries.reduce((a, b) =>
+        (hourCounts[Number(a[0])] || 0) > (hourCounts[Number(b[0])] || 0) ? a : b
+      );
 
-    if (bestHour) {
-      factors.push(`Peak success time: ${bestHour[0]}:00-${Number(bestHour[0]) + 1}:00`);
+      if (bestHour && bestHour[0]) {
+        factors.push(`Peak success time: ${bestHour[0]}:00-${Number(bestHour[0]) + 1}:00`);
+      }
     }
 
     // Message count analysis
@@ -733,7 +735,6 @@ export class AnalyticsService {
         startTime: { gte: startOfDay },
       },
       include: {
-        interventions: true,
         customer: true,
         messages: true,
       },
@@ -748,10 +749,12 @@ export class AnalyticsService {
 
     todaysSessions.forEach(session => {
       const hour = new Date(session.startTime).getHours();
-      hourlyData[hour].conversations++;
+      if (hourlyData[hour]) {
+        hourlyData[hour].conversations++;
 
-      if (session.interventions.some(i => i.outcome === 'SUCCESS')) {
-        hourlyData[hour].successful++;
+        if (session.outcome === 'payment_completed' || session.outcome === 'resolved') {
+          hourlyData[hour].successful++;
+        }
       }
     });
 
@@ -821,7 +824,7 @@ export class AnalyticsService {
     // High-value customer pattern
     const highValueSuccess = recentHours.filter(session =>
       Number(session.customer?.accountValue || 0) > 10000 &&
-      session.interventions.some((i: any) => i.outcome === 'SUCCESS')
+      (session.outcome === 'payment_completed' || session.outcome === 'resolved')
     );
 
     if (highValueSuccess.length > 0) {

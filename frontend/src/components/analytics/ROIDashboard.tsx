@@ -1,11 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import {
-  AreaChart,
-  Area,
-  BarChart,
-  Bar,
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -15,9 +9,13 @@ import {
   PieChart,
   Pie,
   Cell,
-  ComposedChart
+  ComposedChart,
+  Area,
+  Line
 } from 'recharts';
 import { TrendingUp, TrendingDown, DollarSign, Users, Clock, Target } from 'lucide-react';
+
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
 
 interface ROIAnalysis {
   period: string;
@@ -61,8 +59,6 @@ interface ROITrend {
   totalCost: number;
   netBenefit: number;
 }
-
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
 
 const ROIDashboard: React.FC = () => {
   const [roiData, setRoiData] = useState<ROIAnalysis | null>(null);
@@ -332,7 +328,7 @@ const ROIDashboard: React.FC = () => {
 
       {/* Business Metrics Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {businessMetrics.map((metric, index) => {
+        {businessMetrics.map((metric) => {
           const Icon = getMetricIcon(metric.name);
           return (
             <div key={metric.name} className="bg-white/5 backdrop-blur-lg p-6 rounded-xl border border-white/10">
@@ -383,7 +379,7 @@ const ROIDashboard: React.FC = () => {
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie
-                data={costBreakdown}
+                data={costBreakdown as any}
                 cx="50%"
                 cy="50%"
                 labelLine={false}
@@ -392,7 +388,7 @@ const ROIDashboard: React.FC = () => {
                 fill="#8884d8"
                 dataKey="amount"
               >
-                {costBreakdown.map((entry, index) => (
+                {costBreakdown.map((_entry, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>

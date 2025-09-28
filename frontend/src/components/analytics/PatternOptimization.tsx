@@ -8,8 +8,6 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-  LineChart,
-  Line,
   RadarChart,
   PolarGrid,
   PolarAngleAxis,
@@ -19,7 +17,7 @@ import {
   Scatter,
   Cell
 } from 'recharts';
-import { Brain, TrendingUp, AlertTriangle, CheckCircle, Target, Zap } from 'lucide-react';
+import { Brain, AlertTriangle, CheckCircle, Target, Zap } from 'lucide-react';
 
 interface PromptVariant {
   id: string;
@@ -70,7 +68,6 @@ const PatternOptimization: React.FC = () => {
   const [insights, setInsights] = useState<OptimizationInsight[]>([]);
   const [performanceFactors, setPerformanceFactors] = useState<PerformanceFactors[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedTest, setSelectedTest] = useState<string>('');
 
   useEffect(() => {
     fetchOptimizationData();
@@ -143,7 +140,7 @@ const PatternOptimization: React.FC = () => {
           variantA: 'Direct Payment Focus',
           variantB: 'Empathetic Approach',
           conversionRateA: 73.2,
-          variantB: 87.5,
+          conversionRateB: 87.5,
           sampleSizeA: 189,
           sampleSizeB: 245,
           confidenceLevel: 99,
@@ -294,7 +291,7 @@ const PatternOptimization: React.FC = () => {
                   border: '1px solid #374151',
                   borderRadius: '8px'
                 }}
-                formatter={(value: any, name: string) => [
+                formatter={(value: any) => [
                   `${value}%`,
                   'Success Rate'
                 ]}
@@ -340,7 +337,7 @@ const PatternOptimization: React.FC = () => {
                 ]}
               />
               <Scatter dataKey="customerSatisfaction" fill="#8884d8">
-                {promptVariants.map((entry, index) => (
+                {promptVariants.map((_entry, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Scatter>
@@ -380,7 +377,7 @@ const PatternOptimization: React.FC = () => {
             <h4 className="text-md font-semibold text-gray-300">Factor Analysis</h4>
             {performanceFactors
               .sort((a, b) => a.priority - b.priority)
-              .map((factor, index) => (
+              .map((factor) => (
                 <div key={factor.factor} className="bg-white/5 p-4 rounded-lg">
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-gray-200 font-medium">{factor.factor}</span>
@@ -465,7 +462,7 @@ const PatternOptimization: React.FC = () => {
                           border: '1px solid #374151',
                           borderRadius: '8px'
                         }}
-                        formatter={(value: any, name: string) => [
+                        formatter={(value: any) => [
                           `${value}%`,
                           'Conversion Rate'
                         ]}

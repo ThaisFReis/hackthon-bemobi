@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { io, Socket } from 'socket.io-client';
+import { io } from 'socket.io-client';
 import { QueueStatus, QueueConfig } from '../types/queue';
 import LangSmithDashboard from './LangSmithDashboard';
 

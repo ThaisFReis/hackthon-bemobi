@@ -35,7 +35,7 @@ router.get('/performance', async (req, res) => {
       granularity as 'hour' | 'day' | 'week' | 'month'
     );
 
-    res.json({
+    return res.json({
       success: true,
       data: metrics,
       period: {
@@ -46,7 +46,7 @@ router.get('/performance', async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching performance metrics:', error);
-    res.status(500).json({
+    return res.status(500).json({
       error: 'Failed to fetch performance metrics',
       details: error instanceof Error ? error.message : 'Unknown error'
     });
@@ -72,7 +72,7 @@ router.get('/patterns', async (req, res) => {
 
     const patterns = await analyticsService.analyzeConversationPatterns(start, end);
 
-    res.json({
+    return res.json({
       success: true,
       data: patterns,
       period: {
@@ -82,7 +82,7 @@ router.get('/patterns', async (req, res) => {
     });
   } catch (error) {
     console.error('Error analyzing patterns:', error);
-    res.status(500).json({
+    return res.status(500).json({
       error: 'Failed to analyze conversation patterns',
       details: error instanceof Error ? error.message : 'Unknown error'
     });
@@ -108,7 +108,7 @@ router.get('/roi', async (req, res) => {
 
     const roiAnalysis = await analyticsService.calculateROI(start, end);
 
-    res.json({
+    return res.json({
       success: true,
       data: roiAnalysis,
       period: {
@@ -118,7 +118,7 @@ router.get('/roi', async (req, res) => {
     });
   } catch (error) {
     console.error('Error calculating ROI:', error);
-    res.status(500).json({
+    return res.status(500).json({
       error: 'Failed to calculate ROI',
       details: error instanceof Error ? error.message : 'Unknown error'
     });
@@ -133,14 +133,14 @@ router.get('/realtime', async (req, res) => {
   try {
     const metrics = await analyticsService.getRealTimeMetrics();
 
-    res.json({
+    return res.json({
       success: true,
       data: metrics,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
     console.error('Error fetching real-time metrics:', error);
-    res.status(500).json({
+    return res.status(500).json({
       error: 'Failed to fetch real-time metrics',
       details: error instanceof Error ? error.message : 'Unknown error'
     });
@@ -189,11 +189,11 @@ router.get('/trends', async (req, res) => {
     // Extract specific metric for trending
     const trendData = metrics.map(m => ({
       period: m.period,
-      value: this.extractMetricValue(m, metric as string),
+      value: extractMetricValue(m, metric as string),
       timestamp: new Date(m.period).getTime()
     }));
 
-    res.json({
+    return res.json({
       success: true,
       data: trendData,
       metadata: {
@@ -205,7 +205,7 @@ router.get('/trends', async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching trends:', error);
-    res.status(500).json({
+    return res.status(500).json({
       error: 'Failed to fetch trend data',
       details: error instanceof Error ? error.message : 'Unknown error'
     });
@@ -262,7 +262,7 @@ router.get('/segments', async (req, res) => {
                   data.totalSuccessRate / data.periods > 50 ? 'medium' : 'low'
     }));
 
-    res.json({
+    return res.json({
       success: true,
       data: segmentAnalysis,
       period: {
@@ -272,7 +272,7 @@ router.get('/segments', async (req, res) => {
     });
   } catch (error) {
     console.error('Error analyzing segments:', error);
-    res.status(500).json({
+    return res.status(500).json({
       error: 'Failed to analyze customer segments',
       details: error instanceof Error ? error.message : 'Unknown error'
     });
@@ -307,13 +307,13 @@ function extractMetricValue(metrics: any, metricName: string): number {
 router.get('/patterns/realtime', async (req, res) => {
   try {
     const data = await analyticsService.getRealtimePatterns();
-    res.json({
+    return res.json({
       success: true,
       data,
     });
   } catch (error) {
     console.error('Error getting realtime patterns:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to get realtime patterns',
     });

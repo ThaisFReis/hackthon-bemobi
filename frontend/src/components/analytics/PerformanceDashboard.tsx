@@ -16,7 +16,9 @@ import {
   Pie,
   Cell
 } from 'recharts';
-import { format, subDays } from 'date-fns';
+import { format } from 'date-fns';
+
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
 
 interface PerformanceMetric {
   period: string;
@@ -49,7 +51,6 @@ interface RealTimeMetrics {
   alertsCount: number;
 }
 
-const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#d084d0'];
 
 const PerformanceDashboard: React.FC = () => {
   const [performanceData, setPerformanceData] = useState<PerformanceMetric[]>([]);
@@ -437,7 +438,7 @@ const PerformanceDashboard: React.FC = () => {
                 fill="#8884d8"
                 dataKey="conversations"
               >
-                {segmentData.map((entry, index) => (
+                {segmentData.map((_entry, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
@@ -475,7 +476,7 @@ const PerformanceDashboard: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/10">
-                {segmentData.map((segment, index) => (
+                {segmentData.map((segment) => (
                   <tr key={segment.name} className="hover:bg-white/5">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-200">
                       {segment.name}

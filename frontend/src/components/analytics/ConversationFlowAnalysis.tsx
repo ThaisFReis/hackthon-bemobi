@@ -4,7 +4,6 @@ import {
   Funnel,
   LabelList,
   ResponsiveContainer,
-  Treemap,
   Cell,
   Tooltip,
   BarChart,
@@ -13,8 +12,6 @@ import {
   YAxis,
   CartesianGrid,
   Legend,
-  LineChart,
-  Line,
   PieChart,
   Pie
 } from 'recharts';
@@ -58,7 +55,6 @@ interface PatternAnalysis {
   }>;
 }
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
 
 const ConversationFlowAnalysis: React.FC = () => {
   const [flowData, setFlowData] = useState<FlowStep[]>([]);
@@ -234,7 +230,7 @@ const ConversationFlowAnalysis: React.FC = () => {
 
           <div className="space-y-4">
             <h4 className="text-md font-semibold text-gray-300">Step Analysis</h4>
-            {flowData.map((step, index) => (
+            {flowData.map((step) => (
               <div key={step.name} className="bg-white/5 p-4 rounded-lg">
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-gray-200 font-medium">{step.name}</span>
@@ -288,7 +284,7 @@ const ConversationFlowAnalysis: React.FC = () => {
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie
-                data={conversationPatterns}
+                data={conversationPatterns as any}
                 cx="50%"
                 cy="50%"
                 labelLine={false}
@@ -316,7 +312,7 @@ const ConversationFlowAnalysis: React.FC = () => {
         <div className="bg-white/5 backdrop-blur-lg p-6 rounded-xl border border-white/10">
           <h3 className="text-lg font-semibold text-gray-200 mb-4">Pattern Success Rates</h3>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={conversationPatterns} layout="versa">
+            <BarChart data={conversationPatterns}>
               <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
               <XAxis dataKey="pattern" stroke="#9CA3AF" angle={-45} textAnchor="end" height={80} />
               <YAxis domain={[0, 100]} stroke="#9CA3AF" />
@@ -386,7 +382,7 @@ const ConversationFlowAnalysis: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/10">
-              {conversationPatterns.map((pattern, index) => (
+              {conversationPatterns.map((pattern) => (
                 <tr key={pattern.pattern} className="hover:bg-white/5">
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-200">
                     {pattern.pattern}
