@@ -7,15 +7,12 @@ import { QueueStatus, QueueConfig } from '../types/queue';
 const QueueDashboard: React.FC = () => {
   const [queueStatus, setQueueStatus] = useState<QueueStatus | null>(null);
   const [loading, setLoading] = useState(true);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [socket, setSocket] = useState<Socket | null>(null);
   const [configEditing, setConfigEditing] = useState(false);
   const [tempConfig, setTempConfig] = useState<QueueConfig | null>(null);
 
   useEffect(() => {
     // Initialize socket connection
     const socketInstance = io('http://localhost:3001');
-    setSocket(socketInstance);
 
     socketInstance.on('connect', () => {
       console.log('Connected to queue monitoring');
@@ -40,7 +37,7 @@ const QueueDashboard: React.FC = () => {
     return () => {
       socketInstance.disconnect();
     };
-  }, [socket]);
+  }, []);
 
   const fetchQueueStatus = async () => {
     try {

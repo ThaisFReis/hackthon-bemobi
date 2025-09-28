@@ -161,7 +161,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, customerId, cu
   const PAYMENT_TRIGGER = '[PAYMENT_BUTTON]';
 
   return (
-    <div className="flex flex-col h-full bg-white rounded-lg border shadow-lg">
+    <div className="flex flex-col w-full h-full rounded-lg shadow-lg">
       {/* Cabeçalho no estilo WhatsApp */}
       <div className="p-3 border-b flex items-center" style={{ backgroundColor: 'var(--whatsapp-header)' }}>
         <div className="flex items-center space-x-3 text-white">

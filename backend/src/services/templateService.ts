@@ -188,6 +188,7 @@ export class TemplateService {
     const riskMultiplier: { [key: string]: number } = {
       'multiple-failures': 2.0,
       'failed-payment': 1.5,
+      'payment-failed': 1.5, // Alternative format from database conversion
     };
 
     const multiplier = riskMultiplier[customer.riskCategory as keyof typeof riskMultiplier] || 1.0;
