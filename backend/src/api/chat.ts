@@ -1,14 +1,12 @@
 import express from 'express';
-import { AIChatService } from '../services/aiChatService';
+import { LangchainGeminiService } from '../services/langchainGeminiService';
+import { prisma } from '../lib/prisma';
 import ChatMessage from '../models/chatMessage';
 import ChatSession from '../models/chatSession';
 import { v4 as uuidv4 } from 'uuid';
 
 const router = express.Router();
-const aiChatService = new AIChatService();
-
-// Store active chat sessions in memory (in production, use a database)
-const activeSessions = new Map<string, ChatSession>();
+const langchainGeminiService = new LangchainGeminiService();
 
 // Create a new chat session for agent activation
 router.post('/create-session', async (req, res) => {
@@ -19,52 +17,98 @@ router.post('/create-session', async (req, res) => {
       return res.status(400).json({ error: 'Customer ID and name are required' });
     }
 
-    // Fetch complete customer data
-    const customerResponse = await fetch(`http://localhost:3001/api/customers/${customerId}`);
-    let customerData = null;
+    // Fetch complete customer data from database
+    const dbCustomer = await prisma.customer.findUnique({
+      where: { id: customerId },
+      include: {
+        paymentMethods: true,
+        riskFactors: true,
+        interventions: true,
+        paymentStatus: true
+      }
+    });
 
-    if (customerResponse.ok) {
-      customerData = await customerResponse.json();
-    } else {
-      console.warn(`Could not fetch customer data for ${customerId}, using basic info`);
+    if (!dbCustomer) {
+      return res.status(404).json({ error: 'Customer not found' });
     }
 
-    const sessionId = uuidv4();
+    // Convert to format expected by AI service
+    const customerData = {
+      id: dbCustomer.id,
+      name: dbCustomer.name,
+      email: dbCustomer.email,
+      phone: dbCustomer.phone,
+      serviceProvider: dbCustomer.serviceProvider,
+      serviceType: dbCustomer.serviceType,
+      accountValue: Number(dbCustomer.accountValue),
+      riskCategory: dbCustomer.riskCategory.toLowerCase().replace('_', '-'),
+      riskSeverity: dbCustomer.riskSeverity?.toLowerCase(),
+      lastPaymentDate: dbCustomer.lastPaymentDate?.toISOString() || '',
+      nextBillingDate: dbCustomer.nextBillingDate.toISOString(),
+      paymentMethod: dbCustomer.paymentMethods?.[0] ? {
+        id: dbCustomer.paymentMethods[0].id,
+        cardType: dbCustomer.paymentMethods[0].cardType || '',
+        lastFourDigits: '****', // Don't expose real data
+        expiryMonth: 0,
+        expiryYear: 0,
+        status: dbCustomer.paymentMethods[0].status.toLowerCase(),
+        failureCount: dbCustomer.paymentMethods[0].failureCount,
+        lastFailureDate: dbCustomer.paymentMethods[0].lastFailureDate?.toISOString(),
+        lastSuccessDate: dbCustomer.paymentMethods[0].lastSuccessDate?.toISOString()
+      } : {
+        id: '',
+        cardType: '',
+        lastFourDigits: '',
+        expiryMonth: 0,
+        expiryYear: 0,
+        status: '',
+        failureCount: 0
+      }
+    };
+
+    // Create chat session in database
+    const dbChatSession = await prisma.chatSession.create({
+      data: {
+        id: uuidv4(),
+        customerId,
+        customerName,
+        status: 'ACTIVE',
+        paymentIssue: paymentIssue || 'unknown'
+      }
+    });
+
     const chatSession = new ChatSession({
-      id: sessionId,
+      id: dbChatSession.id,
       customerId,
       customerName,
       status: 'active',
-      startTime: new Date(),
-      paymentIssue: paymentIssue || 'unknown'
+      startTime: dbChatSession.startTime,
+      paymentIssue: dbChatSession.paymentIssue || 'unknown'
     });
 
-    // Store customer data in session for AI access
-    if (customerData) {
-      (chatSession as any).customerData = customerData;
-    }
-
-    activeSessions.set(sessionId, chatSession);
-
     // Generate initial AI message with complete customer data
-    const initialMessage = await aiChatService.generateInitialMessage(chatSession, customerData);
+    const initialMessage = await langchainGeminiService.generateInitialMessage(chatSession, customerData);
 
-    // Store the initial message in the session
-    if (!chatSession.messages) {
-      chatSession.messages = [];
-    }
-    chatSession.messages.push(initialMessage);
+    // Store the initial message in database
+    await prisma.chatMessage.create({
+      data: {
+        chatSessionId: dbChatSession.id,
+        sender: 'AI' as any,
+        content: initialMessage.content,
+        messageType: 'TEXT' as any
+      }
+    });
 
     // Emit to connected clients via Socket.io
     const io = req.app.get('io');
-    io.to(sessionId).emit('chat-initiated', {
-      sessionId,
+    io.to(dbChatSession.id).emit('chat-initiated', {
+      sessionId: dbChatSession.id,
       customerName,
       initialMessage
     });
 
     return res.json({
-      sessionId,
+      sessionId: dbChatSession.id,
       chatSession,
       initialMessage
     });
@@ -75,21 +119,90 @@ router.post('/create-session', async (req, res) => {
 });
 
 // Get active chat sessions
-router.get('/sessions', (req, res) => {
-  const sessions = Array.from(activeSessions.values());
-  return res.json(sessions);
+router.get('/sessions', async (req, res) => {
+  try {
+    const dbSessions = await prisma.chatSession.findMany({
+      where: {
+        status: 'ACTIVE'
+      },
+      include: {
+        messages: {
+          orderBy: {
+            timestamp: 'asc'
+          }
+        }
+      },
+      orderBy: {
+        startTime: 'desc'
+      }
+    });
+
+    const sessions = dbSessions.map(session => ({
+      id: session.id,
+      customerId: session.customerId,
+      customerName: session.customerName,
+      status: session.status.toLowerCase(),
+      startTime: session.startTime,
+      endTime: session.endTime,
+      paymentIssue: session.paymentIssue,
+      messages: session.messages.map(msg => ({
+        chatSessionId: msg.chatSessionId,
+        sender: msg.sender.toLowerCase(),
+        content: msg.content,
+        timestamp: msg.timestamp,
+        messageType: msg.messageType.toLowerCase()
+      }))
+    }));
+
+    return res.json(sessions);
+  } catch (error) {
+    console.error('Error fetching chat sessions:', error);
+    return res.status(500).json({ error: 'Failed to fetch chat sessions' });
+  }
 });
 
 // Get specific chat session
-router.get('/sessions/:sessionId', (req, res) => {
-  const { sessionId } = req.params;
-  const session = activeSessions.get(sessionId);
+router.get('/sessions/:sessionId', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
 
-  if (!session) {
-    return res.status(404).json({ error: 'Chat session not found' });
+    const dbSession = await prisma.chatSession.findUnique({
+      where: { id: sessionId },
+      include: {
+        messages: {
+          orderBy: {
+            timestamp: 'asc'
+          }
+        }
+      }
+    });
+
+    if (!dbSession) {
+      return res.status(404).json({ error: 'Chat session not found' });
+    }
+
+    const session = {
+      id: dbSession.id,
+      customerId: dbSession.customerId,
+      customerName: dbSession.customerName,
+      status: dbSession.status.toLowerCase(),
+      startTime: dbSession.startTime,
+      endTime: dbSession.endTime,
+      paymentIssue: dbSession.paymentIssue,
+      messages: dbSession.messages.map(msg => ({
+        chatSessionId: msg.chatSessionId,
+        sender: msg.sender.toLowerCase(),
+        content: msg.content,
+        timestamp: msg.timestamp,
+        messageType: msg.messageType.toLowerCase()
+      }))
+    };
+
+    return res.json(session);
+  } catch (error) {
+    console.error('Error fetching chat session:', error);
+    return res.status(500).json({ error: 'Failed to fetch chat session' });
   }
-
-  return res.json(session);
 });
 
 router.post('/ai-response', async (req, res) => {
@@ -100,6 +213,16 @@ router.post('/ai-response', async (req, res) => {
     if (!session || !session.id || !message || !message.content) {
       return res.status(400).json({ error: 'Invalid request body' });
     }
+
+    // Store user message in database
+    await prisma.chatMessage.create({
+      data: {
+        chatSessionId: session.id,
+        sender: 'CUSTOMER' as any,
+        content: message.content,
+        messageType: 'TEXT' as any
+      }
+    });
 
     // Create a ChatMessage instance from the received message data
     const userMessage = new ChatMessage({
@@ -119,7 +242,17 @@ router.post('/ai-response', async (req, res) => {
       messageType: msg.messageType,
     })) : [];
 
-    const aiResponse = await aiChatService.generateResponse(chatHistory, userMessage);
+    const aiResponse = await langchainGeminiService.generateResponse(chatHistory, userMessage);
+
+    // Store AI response in database
+    await prisma.chatMessage.create({
+      data: {
+        chatSessionId: session.id,
+        sender: 'AI' as any,
+        content: aiResponse.content,
+        messageType: 'TEXT' as any
+      }
+    });
 
     // Emit the AI response via Socket.io
     const io = req.app.get('io');
@@ -141,24 +274,39 @@ router.post('/send-message', async (req, res) => {
       return res.status(400).json({ error: 'Session ID, content, and sender are required' });
     }
 
-    const session = activeSessions.get(sessionId);
-    if (!session) {
+    // Check if session exists in database
+    const dbSession = await prisma.chatSession.findUnique({
+      where: { id: sessionId },
+      include: {
+        messages: {
+          orderBy: {
+            timestamp: 'asc'
+          }
+        }
+      }
+    });
+
+    if (!dbSession) {
       return res.status(404).json({ error: 'Chat session not found' });
     }
+
+    // Store message in database
+    const dbMessage = await prisma.chatMessage.create({
+      data: {
+        chatSessionId: sessionId,
+        sender: sender.toUpperCase() as any,
+        content,
+        messageType: 'TEXT'
+      }
+    });
 
     const message = new ChatMessage({
       chatSessionId: sessionId,
       sender,
       content,
-      timestamp: new Date(),
+      timestamp: dbMessage.timestamp,
       messageType: sender === 'customer' ? 'question' : 'response',
     });
-
-    // Add message to session history
-    if (!session.messages) {
-      session.messages = [];
-    }
-    session.messages.push(message);
 
     // Emit message via Socket.io
     const io = req.app.get('io');
@@ -166,8 +314,27 @@ router.post('/send-message', async (req, res) => {
 
     // If it's a customer message, generate AI response
     if (sender === 'customer') {
-      const aiResponse = await aiChatService.generateResponse(session.messages, message);
-      session.messages.push(aiResponse);
+      // Convert database messages to ChatMessage instances for AI service
+      const chatHistory = dbSession.messages.map(msg => new ChatMessage({
+        chatSessionId: msg.chatSessionId,
+        sender: msg.sender.toLowerCase() as any,
+        content: msg.content,
+        timestamp: msg.timestamp,
+        messageType: msg.messageType.toLowerCase() as any
+      }));
+
+      const aiResponse = await langchainGeminiService.generateResponse(chatHistory, message);
+
+      // Store AI response in database
+      await prisma.chatMessage.create({
+        data: {
+          chatSessionId: sessionId,
+          sender: 'AI' as any,
+          content: aiResponse.content,
+          messageType: 'TEXT' as any
+        }
+      });
+
       io.to(sessionId).emit('receive-message', aiResponse);
 
       return res.json({ userMessage: message, aiResponse });
