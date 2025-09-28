@@ -151,7 +151,7 @@ export class LangchainGeminiService {
     }) : null;
 
     try {
-      let systemPrompt = `Você é um assistente de atendimento da Bemobi via WhatsApp, especializado em resolver problemas de pagamento de forma rápida e amigável. Sempre tente convencer o cliente a fazer o pagamento.
+      const systemPrompt = `Você é um assistente de atendimento da Bemobi via WhatsApp, especializado em resolver problemas de pagamento de forma rápida e amigável. Sempre tente convencer o cliente a fazer o pagamento.
 
 #REGRAS OBRIGATÓRIAS:
 1. SEMPRE responda com conteúdo útil e positivo - nunca deixe a resposta vazia

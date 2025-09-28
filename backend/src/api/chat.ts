@@ -4,6 +4,7 @@ import { prisma } from '../lib/prisma';
 import ChatMessage from '../models/chatMessage';
 import ChatSession from '../models/chatSession';
 import { v4 as uuidv4 } from 'uuid';
+import { ChatMessage as PrismaChatMessage, ChatSession as PrismaChatSession } from '@prisma/client';
 
 
 const router = express.Router();
@@ -217,7 +218,7 @@ router.get('/sessions', async (req, res) => {
       }
     });
 
-    const sessions = dbSessions.map(session => ({
+    const sessions = dbSessions.map((session: PrismaChatSession & { messages: PrismaChatMessage[] }) => ({
       id: session.id,
       customerId: session.customerId,
       customerName: session.customerName,
@@ -225,7 +226,7 @@ router.get('/sessions', async (req, res) => {
       startTime: session.startTime,
       endTime: session.endTime,
       paymentIssue: session.paymentIssue,
-      messages: session.messages.map(msg => ({
+      messages: session.messages.map((msg: PrismaChatMessage) => ({
         chatSessionId: msg.chatSessionId,
         sender: msg.sender.toLowerCase(),
         content: msg.content,
@@ -269,7 +270,7 @@ router.get('/sessions/:sessionId', async (req, res) => {
       startTime: dbSession.startTime,
       endTime: dbSession.endTime,
       paymentIssue: dbSession.paymentIssue,
-      messages: dbSession.messages.map(msg => ({
+      messages: dbSession.messages.map((msg: PrismaChatMessage) => ({
         chatSessionId: msg.chatSessionId,
         sender: msg.sender.toLowerCase(),
         content: msg.content,

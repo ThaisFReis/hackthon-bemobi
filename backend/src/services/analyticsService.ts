@@ -1,6 +1,17 @@
 import { Client } from 'langsmith';
 import { LangchainGeminiService } from './langchainGeminiService';
 import { prisma } from '../lib/prisma';
+import { ChatSession, Customer, ChatMessage } from '@prisma/client';
+
+type ConversationWithDetails = ChatSession & {
+  customer: Customer | null;
+  messages: ChatMessage[];
+};
+
+type SessionWithCustomer = ChatSession & {
+  customer: Customer | null;
+};
+
 
 interface ConversationOutcome {
   sessionId: string;
@@ -150,10 +161,10 @@ export class AnalyticsService {
       });
 
       // Categorize by outcome
-      const successful = conversations.filter(c =>
+      const successful = conversations.filter((c: ConversationWithDetails) =>
         c.outcome === 'payment_completed' || c.outcome === 'resolved'
       );
-      const failed = conversations.filter(c =>
+      const failed = conversations.filter((c: ConversationWithDetails) =>
         c.outcome === 'customer_dropped' || c.outcome === 'escalated'
       );
 
@@ -186,11 +197,11 @@ export class AnalyticsService {
         },
       });
 
-      const successfulSessions = sessions.filter(s =>
+      const successfulSessions = sessions.filter((s: SessionWithCustomer) =>
         s.outcome === 'payment_completed' || s.outcome === 'resolved'
       );
       const totalRevenueRecovered = successfulSessions.reduce(
-        (sum, session) => sum + Number(session.customer?.accountValue || 0),
+        (sum: number, session: SessionWithCustomer) => sum + Number(session.customer?.accountValue || 0),
         0
       ) / 100; // Convert from cents
 
@@ -255,12 +266,12 @@ export class AnalyticsService {
       },
     });
 
-    const successfulToday = todaysSessions.filter(s =>
+    const successfulToday = todaysSessions.filter((s: SessionWithCustomer) =>
       s.outcome === 'payment_completed' || s.outcome === 'resolved'
     );
 
     const revenueToday = successfulToday.reduce(
-      (sum, session) => sum + Number(session.customer?.accountValue || 0),
+      (sum: number, session: SessionWithCustomer) => sum + Number(session.customer?.accountValue || 0),
       0
     ) / 100;
 
@@ -747,7 +758,7 @@ export class AnalyticsService {
       hourlyData[hour] = { conversations: 0, successful: 0 };
     }
 
-    todaysSessions.forEach(session => {
+    todaysSessions.forEach((session: ConversationWithDetails) => {
       const hour = new Date(session.startTime).getHours();
       if (hourlyData[hour]) {
         hourlyData[hour].conversations++;

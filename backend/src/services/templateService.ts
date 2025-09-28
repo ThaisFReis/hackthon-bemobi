@@ -111,7 +111,7 @@ export class TemplateService {
     const formattedValue = this.formatCurrency(customer.accountValue);
 
     // Replace template variables
-    let message = template
+    const message = template
       .replace('{name}', customer.name)
       .replace('{provider}', customer.serviceProvider)
       .replace('{cardMask}', cardMask)

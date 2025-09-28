@@ -7,6 +7,8 @@ import { prisma } from '../lib/prisma';
 import { v4 as uuidv4 } from 'uuid';
 import { paymentTransactionService } from './paymentTransactionService';
 import { contactLogService } from './contactLogService';
+import { Intervention, Customer as PrismaCustomer, RiskFactor, ChatSession as PrismaChatSession, PaymentTransaction } from '@prisma/client';
+
 
 // CustomerData interface matching LangchainGeminiService
 interface CustomerData {
@@ -114,7 +116,7 @@ export class QueueService {
         billingCycle: dbCustomer.billingCycle.toLowerCase(),
         nextBillingDate: dbCustomer.nextBillingDate.toISOString(),
         riskFactors: dbCustomer.riskFactors?.map((rf: any) => rf.factor) || [],
-        interventionHistory: dbCustomer.interventions?.map(intervention => ({
+        interventionHistory: dbCustomer.interventions?.map((intervention: Intervention) => ({
           date: intervention.date.toISOString(),
           outcome: intervention.outcome.toLowerCase(),
           notes: intervention.notes || ''
@@ -513,7 +515,7 @@ export class QueueService {
         });
 
         // Convert database customers to Customer model instances
-        customersToProcess = dbCustomers.map(dbCustomer => new Customer({
+        customersToProcess = dbCustomers.map((dbCustomer: PrismaCustomer & { riskFactors: RiskFactor[], interventions: Intervention[] }) => new Customer({
           id: dbCustomer.id,
           name: dbCustomer.name,
           email: dbCustomer.email,
@@ -528,8 +530,8 @@ export class QueueService {
           serviceType: dbCustomer.serviceType,
           billingCycle: dbCustomer.billingCycle.toLowerCase(),
           nextBillingDate: dbCustomer.nextBillingDate.toISOString(),
-          riskFactors: dbCustomer.riskFactors?.map(rf => rf.factor) || [],
-          interventionHistory: dbCustomer.interventions?.map((intervention: any) => ({
+          riskFactors: dbCustomer.riskFactors?.map((rf: RiskFactor) => rf.factor) || [],
+          interventionHistory: dbCustomer.interventions?.map((intervention: Intervention) => ({
             date: intervention.date.toISOString(),
             outcome: intervention.outcome.toLowerCase(),
             notes: intervention.notes || ''
