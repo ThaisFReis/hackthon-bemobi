@@ -22,6 +22,8 @@ app.set('io', io);
 import chatRoutes from './api/chat';
 import customerRoutes from './api/customers';
 import queueRoutes from './api/queue';
+import metricsRoutes from './api/metrics';
+import metabaseRoutes from './api/metabase';
 import { QueueService } from './services/queueService';
 import { AIChatService } from './services/aiChatService';
 import Customer from './models/customer';
@@ -39,6 +41,8 @@ app.set('aiChatService', aiChatService);
 app.use('/api/chat', chatRoutes);
 app.use('/api/customers', customerRoutes);
 app.use('/api/queue', queueRoutes);
+app.use('/api/metrics', metricsRoutes);
+app.use('/api/metabase', metabaseRoutes);
 
 // Connect queue service to Socket.io for real-time events
 queueService.setEventEmitter((event: string, data: any) => {
