@@ -43,9 +43,6 @@
       "paymentMethod": {
         "id": "pm_002",
         "cardType": "mastercard",
-        "lastFourDigits": "5678",
-        "expiryMonth": 3,
-        "expiryYear": 2027,
         "status": "failed",
         "failureCount": 2,
         "lastFailureDate": "2025-09-26",
@@ -72,9 +69,6 @@
       "paymentMethod": {
         "id": "pm_003",
         "cardType": "visa",
-        "lastFourDigits": "9876",
-        "expiryMonth": 11,
-        "expiryYear": 2026,
         "status": "blocked",
         "failureCount": 3,
         "lastFailureDate": "2025-09-25",
@@ -95,7 +89,7 @@
       "email": "ana.costa@empresa.com.br",
       "phone": "+5511765432109",
       "accountStatus": "at-risk",
-      "riskCategory": "expiring-card",
+      "riskCategory": "multiple-failures",
       "riskSeverity": "medium",
       "lastPaymentDate": "2025-09-01",
       "accountValue": 4990,
@@ -107,14 +101,12 @@
       "paymentMethod": {
         "id": "pm_004",
         "cardType": "elo",
-        "lastFourDigits": "3456",
-        "expiryMonth": 10,
-        "expiryYear": 2025,
-        "status": "expiring_soon",
-        "failureCount": 0,
+        "status": "failed",
+        "failureCount": 2,
+        "lastFailureDate": "2025-09-26",
         "lastSuccessDate": "2025-09-01"
       },
-      "riskFactors": ["card_expires_next_month", "family_plan"],
+      "riskFactors": ["payment_failed_multiple", "family_plan"],
       "interventionHistory": []
     },
     {
@@ -135,9 +127,6 @@
       "paymentMethod": {
         "id": "pm_005",
         "cardType": "visa",
-        "lastFourDigits": "7890",
-        "expiryMonth": 12,
-        "expiryYear": 2027,
         "status": "active",
         "failureCount": 0,
         "lastSuccessDate": "2025-09-15"
@@ -151,7 +140,7 @@
       "email": "fernanda.lima@startup.tech",
       "phone": "+5511543210987",
       "accountStatus": "at-risk",
-      "riskCategory": "expiring-card",
+      "riskCategory": "multiple-failures",
       "riskSeverity": "medium",
       "lastPaymentDate": "2025-09-10",
       "accountValue": 15990,
@@ -163,14 +152,12 @@
       "paymentMethod": {
         "id": "pm_006",
         "cardType": "mastercard",
-        "lastFourDigits": "2468",
-        "expiryMonth": 10,
-        "expiryYear": 2025,
-        "status": "expiring_soon",
-        "failureCount": 0,
+        "status": "failed",
+        "failureCount": 3,
+        "lastFailureDate": "2025-09-25",
         "lastSuccessDate": "2025-09-10"
       },
-      "riskFactors": ["card_expires_next_month", "premium_plan"],
+      "riskFactors": ["payment_failed_multiple", "premium_plan"],
       "interventionHistory": []
     },
     {
@@ -191,9 +178,6 @@
       "paymentMethod": {
         "id": "pm_007",
         "cardType": "visa",
-        "lastFourDigits": "1357",
-        "expiryMonth": 6,
-        "expiryYear": 2026,
         "status": "failed",
         "failureCount": 1,
         "lastFailureDate": "2025-09-25",
@@ -220,9 +204,6 @@
       "paymentMethod": {
         "id": "pm_008",
         "cardType": "elo",
-        "lastFourDigits": "8024",
-        "expiryMonth": 4,
-        "expiryYear": 2027,
         "status": "failed",
         "failureCount": 3,
         "lastFailureDate": "2025-09-26",
@@ -243,7 +224,7 @@
       "email": "ricardo.almeida@empresafamiliar.com.br",
       "phone": "+5511210987654",
       "accountStatus": "at-risk",
-      "riskCategory": "expiring-card",
+      "riskCategory": "multiple-failures",
       "riskSeverity": "low",
       "lastPaymentDate": "2025-09-20",
       "accountValue": 3490,
@@ -255,14 +236,12 @@
       "paymentMethod": {
         "id": "pm_009",
         "cardType": "visa",
-        "lastFourDigits": "9753",
-        "expiryMonth": 11,
-        "expiryYear": 2025,
-        "status": "expiring_soon",
-        "failureCount": 0,
+        "status": "failed",
+        "failureCount": 2,
+        "lastFailureDate": "2025-09-25",
         "lastSuccessDate": "2025-09-20"
       },
-      "riskFactors": ["card_expires_next_month", "basic_plan"],
+      "riskFactors": ["payment_failed_multiple", "basic_plan"],
       "interventionHistory": []
     },
     {
@@ -283,9 +262,6 @@
       "paymentMethod": {
         "id": "pm_010",
         "cardType": "mastercard",
-        "lastFourDigits": "4681",
-        "expiryMonth": 8,
-        "expiryYear": 2028,
         "status": "active",
         "failureCount": 0,
         "lastSuccessDate": "2025-09-18"
@@ -301,15 +277,15 @@
   },
   "conversationTemplates": {
     "telecom": {
-      "cardExpiring": "Oi {name}! Aqui é da {provider}. Seu cartão {cardMask} vence em {days} dias. Quer atualizar para não perder seu número?",
+      "paymentIssue": "Oi {name}! Aqui é da {provider}. Identificamos problemas no seu pagamento. Vamos resolver para não perder seu número?",
       "paymentFailed": "Oi {name}! O pagamento do seu plano {serviceType} de R$ {value} não foi processado. Vamos resolver para manter sua linha ativa?"
     },
     "utilities": {
-      "cardExpiring": "Oi {name}! Aqui é da {provider}. Seu cartão {cardMask} vence em {days} dias. Quer atualizar para evitar corte de energia?",
+      "paymentIssue": "Oi {name}! Aqui é da {provider}. Identificamos problemas no seu pagamento. Vamos resolver para evitar corte de energia?",
       "paymentFailed": "Oi {name}! Sua conta de luz de R$ {value} não foi paga. Vamos resolver antes do prazo de corte?"
     },
     "education": {
-      "cardExpiring": "Oi {name}! Aqui é da {provider}. Seu cartão {cardMask} vence em {days} dias. Quer atualizar para manter suas aulas em dia?",
+      "paymentIssue": "Oi {name}! Aqui é da {provider}. Identificamos problemas no seu pagamento. Vamos resolver para manter suas aulas em dia?",
       "paymentFailed": "Oi {name}! A mensalidade de R$ {value} não foi processada. Vamos resolver para não afetar seu semestre?"
     }
   },
