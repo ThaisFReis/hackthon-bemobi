@@ -145,25 +145,11 @@ export class TemplateService {
       Enfatize a importância de manter os estudos em dia e o investimento no futuro.`
     };
 
-    return prompts[serviceCategory] || prompts['telecom'];
+    return prompts[serviceCategory] || prompts.telecom!
   }
 
   public shouldTriggerIntervention(customer: CustomerData): boolean {
     const now = new Date();
-
-    // Card expiring logic
-    if (customer.riskCategory === 'expiring-card') {
-      const daysUntilExpiry = this.calculateDaysUntilExpiry(
-        customer.paymentMethod.expiryMonth,
-        customer.paymentMethod.expiryYear
-      );
-
-      // Trigger 7 days before expiry for utilities (critical), 5 days for others
-      const serviceCategory = this.getServiceCategory(customer.serviceProvider);
-      const triggerDays = serviceCategory === 'utilities' ? 7 : 5;
-
-      return daysUntilExpiry <= triggerDays && daysUntilExpiry > 0;
-    }
 
     // Payment failed logic
     if (customer.riskCategory === 'failed-payment' || customer.riskCategory === 'multiple-failures') {
@@ -202,10 +188,10 @@ export class TemplateService {
     const riskMultiplier: { [key: string]: number } = {
       'multiple-failures': 2.0,
       'failed-payment': 1.5,
-      'expiring-card': 1.2
     };
 
-    priority *= (riskMultiplier[customer.riskCategory] || 1.0);
+    const multiplier = riskMultiplier[customer.riskCategory as keyof typeof riskMultiplier] || 1.0;
+    priority *= multiplier;
 
     // Account value bonus (higher value = higher priority)
     if (customer.accountValue > 50000) { // > R$ 500
@@ -223,27 +209,10 @@ export class TemplateService {
       priority += 10;
     }
 
-    // Time sensitivity for card expiry
-    if (customer.riskCategory === 'expiring-card') {
-      const daysUntilExpiry = this.calculateDaysUntilExpiry(
-        customer.paymentMethod.expiryMonth,
-        customer.paymentMethod.expiryYear
-      );
-
-      if (daysUntilExpiry <= 3) {
-        priority += 15; // Very urgent
-      } else if (daysUntilExpiry <= 7) {
-        priority += 10; // Urgent
-      }
-    }
-
     return Math.min(100, Math.round(priority));
   }
 
-  public getScenarioFromRisk(riskCategory: string): 'cardExpiring' | 'paymentFailed' {
-    if (riskCategory === 'expiring-card') {
-      return 'cardExpiring';
-    }
+  public getScenarioFromRisk(riskCategory: string): 'paymentFailed' {
     return 'paymentFailed'; // Default for failed-payment, multiple-failures, etc.
   }
 }

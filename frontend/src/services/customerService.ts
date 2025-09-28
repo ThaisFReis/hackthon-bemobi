@@ -1,4 +1,4 @@
-import { Customer } from '../../../../backend/src/models/customer';
+import { Customer } from '../types/customer';
 
 class CustomerService {
   async getCustomers(): Promise<Customer[]> {

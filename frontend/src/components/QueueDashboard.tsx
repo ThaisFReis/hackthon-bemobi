@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { io, Socket } from 'socket.io-client';
+import { QueueStatus, QueueConfig } from '../types/queue';
 
 // ... (interfaces remain the same)
 
 const QueueDashboard: React.FC = () => {
   const [queueStatus, setQueueStatus] = useState<QueueStatus | null>(null);
   const [loading, setLoading] = useState(true);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [socket, setSocket] = useState<Socket | null>(null);
   const [configEditing, setConfigEditing] = useState(false);
   const [tempConfig, setTempConfig] = useState<QueueConfig | null>(null);
@@ -21,6 +23,7 @@ const QueueDashboard: React.FC = () => {
     });
 
     socketInstance.on('queue-status', (status: QueueStatus) => {
+      console.log('Queue status from socket:', status);
       setQueueStatus(status);
       setLoading(false);
     });
@@ -37,7 +40,7 @@ const QueueDashboard: React.FC = () => {
     return () => {
       socketInstance.disconnect();
     };
-  }, []);
+  }, [socket]);
 
   const fetchQueueStatus = async () => {
     try {
@@ -128,9 +131,7 @@ const QueueDashboard: React.FC = () => {
     return new Date(dateString).toLocaleTimeString();
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString();
-  };
+
 
   if (loading) {
     return (

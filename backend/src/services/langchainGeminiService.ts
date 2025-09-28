@@ -244,7 +244,7 @@ IMPORTANTE:
       'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
       'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'
     ];
-    return months[new Date().getMonth()];
+    return months[new Date().getMonth()] || 'janeiro';
   }
 
   private generateFallbackMessage(chatSession: any, customerData: CustomerData | null): ChatMessage {

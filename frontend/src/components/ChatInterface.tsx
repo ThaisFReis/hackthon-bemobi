@@ -273,7 +273,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, customerId, cu
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-            className="flex-grow p-3 border-none rounded-full focus:ring-2 focus:ring-green-500"
+            className="flex-grow text-black p-3 border-none rounded-full focus:ring-2 focus:ring-green-500"
             placeholder={connected ? "Digite sua mensagem" : "Conectando..."}
             disabled={!connected}
             style={{ backgroundColor: 'var(--whatsapp-bubble-in)' }}

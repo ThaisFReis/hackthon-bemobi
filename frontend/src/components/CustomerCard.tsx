@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Customer } from '../../../../backend/src/models/customer';
+import { Customer } from '../types/customer';
 import { MessageSquare, Zap, CheckCircle, AlertTriangle } from 'lucide-react';
 
 interface CustomerCardProps {
@@ -16,9 +16,7 @@ const CustomerCard: React.FC<CustomerCardProps> = ({ customer, onChatTriggered }
 
     try {
       let paymentIssue = 'payment-failure';
-      if (customer.riskCategory === 'expiring-card') {
-        paymentIssue = 'card-expiring-soon';
-      } else if (customer.riskCategory === 'failed-payment') {
+      if (customer.riskCategory === 'failed-payment') {
         paymentIssue = 'payment-failure';
       }
 
@@ -58,7 +56,6 @@ const CustomerCard: React.FC<CustomerCardProps> = ({ customer, onChatTriggered }
 
   const riskStyles = {
     'failed-payment': 'bg-red-500/20 text-red-300',
-    'expiring-card': 'bg-yellow-500/20 text-yellow-300',
     'default': 'bg-gray-500/20 text-gray-300',
   };
 
@@ -76,14 +73,14 @@ const CustomerCard: React.FC<CustomerCardProps> = ({ customer, onChatTriggered }
         
         <div className="flex items-center mb-2">
           <AlertTriangle className="w-4 h-4 text-red-400 mr-2" />
-          <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${riskStyles[customer.riskCategory] || riskStyles.default}`}>
-            {customer.riskCategory.replace('-', ' ')}
+          <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${riskStyles[customer.riskCategory as keyof typeof riskStyles] || riskStyles.default}`}>
+            {customer.riskCategory ? customer.riskCategory.replace('-', ' ') : 'No Category'}
           </span>
         </div>
 
         <div className="flex items-center">
           <CheckCircle className="w-4 h-4 text-gray-400 mr-2" />
-          <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${statusStyles[customer.accountStatus] || statusStyles.default}`}>
+          <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${statusStyles[customer.accountStatus as keyof typeof statusStyles] || statusStyles.default}`}>
             {customer.accountStatus}
           </span>
         </div>

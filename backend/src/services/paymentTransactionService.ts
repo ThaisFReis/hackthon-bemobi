@@ -5,20 +5,13 @@ export interface PaymentReceiptData {
   customerId: string;
   amount: number;
   transactionDate: Date;
-  externalId?: string;
-  paymentMethodId?: string;
-  billingPeriodStart?: Date;
-  billingPeriodEnd?: Date;
   description?: string;
 }
 
-export interface PaymentDueData {
+export interface PendingPaymentData {
   customerId: string;
   amount: number;
-  dueDate: Date;
-  billingPeriodStart: Date;
-  billingPeriodEnd: Date;
-  gracePeriodEnd?: Date;
+  transactionDate: Date;
 }
 
 export class PaymentTransactionService {
@@ -29,31 +22,19 @@ export class PaymentTransactionService {
       console.log(`Recording payment receipt for customer ${data.customerId}: R$ ${data.amount}`);
 
       // Create payment transaction record
-      const transaction = await prisma.paymentTransaction.create({
+      await prisma.paymentTransaction.create({
         data: {
           customerId: data.customerId,
           amount: data.amount,
           status: 'COMPLETED',
           transactionDate: data.transactionDate,
           paidDate: data.transactionDate,
-          paymentMethodId: data.paymentMethodId,
-          billingPeriodStart: data.billingPeriodStart,
-          billingPeriodEnd: data.billingPeriodEnd,
           description: data.description || 'Monthly subscription payment',
-          externalId: data.externalId
         }
       });
 
       // Find and mark corresponding payment due as paid
-      if (data.billingPeriodStart && data.billingPeriodEnd) {
-        await this.markPaymentDueAsPaid(
-          data.customerId,
-          data.billingPeriodStart,
-          data.billingPeriodEnd,
-          data.amount,
-          transaction.id
-        );
-      }
+
 
       // Update customer status to active
       await prisma.customer.update({
@@ -84,12 +65,14 @@ export class PaymentTransactionService {
   // Check if customer has outstanding payments
   async hasOutstandingPayments(customerId: string): Promise<boolean> {
     try {
-      const outstandingPayments = await prisma.paymentDue.count({
+      const outstandingPayments = await prisma.paymentTransaction.count({
         where: {
           customerId,
-          isPaid: false,
-          dueDate: {
-            lte: new Date() // Due date has passed
+          status: {
+            in: ['PENDING', 'FAILED']
+          },
+          transactionDate: {
+            lte: new Date()
           }
         }
       });
@@ -125,54 +108,27 @@ export class PaymentTransactionService {
   }
 
   // Create payment due record
-  async createPaymentDue(data: PaymentDueData): Promise<void> {
+  async createPendingPayment(data: PendingPaymentData): Promise<void> {
     try {
-      await prisma.paymentDue.create({
+      await prisma.paymentTransaction.create({
         data: {
           customerId: data.customerId,
           amount: data.amount,
-          dueDate: data.dueDate,
-          billingPeriodStart: data.billingPeriodStart,
-          billingPeriodEnd: data.billingPeriodEnd,
-          gracePeriodEnd: data.gracePeriodEnd || this.calculateGracePeriod(data.dueDate),
-          isOverdue: data.dueDate < new Date()
+          status: 'PENDING',
+          transactionDate: data.transactionDate,
+          description: 'Pending payment'
         }
       });
 
-      console.log(`Payment due created for customer ${data.customerId}: R$ ${data.amount} due ${data.dueDate.toISOString()}`);
+      console.log(`Pending payment created for customer ${data.customerId}: R$ ${data.amount} due ${data.transactionDate.toISOString()}`);
     } catch (error) {
-      console.error('Error creating payment due:', error);
+      console.error('Error creating pending payment:', error);
       throw error;
     }
   }
 
   // Mark payment due as paid
-  private async markPaymentDueAsPaid(
-    customerId: string,
-    billingPeriodStart: Date,
-    billingPeriodEnd: Date,
-    paidAmount: number,
-    transactionId: string
-  ): Promise<void> {
-    try {
-      await prisma.paymentDue.updateMany({
-        where: {
-          customerId,
-          billingPeriodStart,
-          billingPeriodEnd,
-          isPaid: false
-        },
-        data: {
-          isPaid: true,
-          paidDate: new Date(),
-          paidAmount,
-          paymentTransactionId: transactionId
-        }
-      });
-    } catch (error) {
-      console.error('Error marking payment due as paid:', error);
-    }
-  }
+
 
   // Add contact restriction for resolved payments
   private async addPaymentResolvedRestriction(customerId: string): Promise<void> {
@@ -229,13 +185,15 @@ export class PaymentTransactionService {
   async getCustomerPaymentSummary(customerId: string) {
     try {
       const [outstandingPayments, recentPayments, contactRestrictions] = await Promise.all([
-        prisma.paymentDue.findMany({
+        prisma.paymentTransaction.findMany({
           where: {
             customerId,
-            isPaid: false
+            status: {
+              in: ['PENDING', 'FAILED']
+            }
           },
           orderBy: {
-            dueDate: 'asc'
+            transactionDate: 'asc'
           }
         }),
         prisma.paymentTransaction.findMany({

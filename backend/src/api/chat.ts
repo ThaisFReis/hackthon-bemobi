@@ -4,7 +4,7 @@ import { prisma } from '../lib/prisma';
 import ChatMessage from '../models/chatMessage';
 import ChatSession from '../models/chatSession';
 import { v4 as uuidv4 } from 'uuid';
-import { paymentProcessingService } from '../services/paymentProcessingService';
+
 
 const router = express.Router();
 const langchainGeminiService = new LangchainGeminiService();
@@ -12,7 +12,7 @@ const langchainGeminiService = new LangchainGeminiService();
 // Create a new chat session for agent activation
 router.post('/create-session', async (req, res) => {
   try {
-    const { customerId, customerName, paymentIssue, customerData } = req.body;
+    const { customerId, customerName, paymentIssue } = req.body;
 
     if (!customerId || !customerName) {
       return res.status(400).json({ error: 'Customer ID and name are required' });
@@ -151,9 +151,14 @@ router.post('/send-invoice-card/:sessionId', async (req, res) => {
     const customerData = {
       id: dbSession.customer.id,
       name: dbSession.customer.name,
+      email: dbSession.customer.email,
+      phone: dbSession.customer.phone,
       serviceProvider: dbSession.customer.serviceProvider,
       serviceType: dbSession.customer.serviceType,
-      accountValue: Number(dbSession.customer.accountValue)
+      accountValue: Number(dbSession.customer.accountValue),
+      riskCategory: dbSession.customer.riskCategory.toLowerCase().replace('_', '-'),
+      lastPaymentDate: dbSession.customer.lastPaymentDate?.toISOString() || '',
+      nextBillingDate: dbSession.customer.nextBillingDate.toISOString(),
     };
 
     // Cria objeto de sessão temporário
@@ -280,9 +285,17 @@ router.get('/sessions/:sessionId', async (req, res) => {
   }
 });
 
+interface MessagePayload {
+  chatSessionId: string;
+  sender: 'CUSTOMER' | 'AI' | 'SYSTEM';
+  content: string;
+  timestamp: string;
+  messageType: 'TEXT' | 'AUDIO' | 'SYSTEM' | 'PAYMENT_LINK' | 'DOCUMENT';
+}
+
 router.post('/ai-response', async (req, res) => {
   try {
-    const { session, message, history } = req.body;
+    const { session, message, history }: { session: { id: string }, message: MessagePayload, history: MessagePayload[] } = req.body;
 
     // Basic validation
     if (!session || !session.id || !message || !message.content) {
@@ -293,28 +306,28 @@ router.post('/ai-response', async (req, res) => {
     await prisma.chatMessage.create({
       data: {
         chatSessionId: session.id,
-        sender: 'CUSTOMER' as any,
+        sender: 'CUSTOMER',
         content: message.content,
-        messageType: 'TEXT' as any
+        messageType: 'TEXT'
       }
     });
 
     // Create a ChatMessage instance from the received message data
     const userMessage = new ChatMessage({
       chatSessionId: session.id,
-      sender: message.sender,
+      sender: message.sender as any,
       content: message.content,
       timestamp: new Date(message.timestamp),
-      messageType: message.messageType,
+      messageType: message.messageType as any,
     });
 
     // Reconstruct history messages as ChatMessage instances
-    const chatHistory: ChatMessage[] = history ? history.map((msg: any) => new ChatMessage({
+    const chatHistory: ChatMessage[] = history ? history.map((msg: MessagePayload) => new ChatMessage({
       chatSessionId: msg.chatSessionId,
-      sender: msg.sender,
+      sender: msg.sender as any,
       content: msg.content,
       timestamp: new Date(msg.timestamp),
-      messageType: msg.messageType,
+      messageType: msg.messageType as any,
     })) : [];
 
     const aiResponse = await langchainGeminiService.generateResponse(chatHistory, userMessage);
@@ -323,9 +336,9 @@ router.post('/ai-response', async (req, res) => {
     await prisma.chatMessage.create({
       data: {
         chatSessionId: session.id,
-        sender: 'AI' as any,
+        sender: 'AI',
         content: aiResponse.content,
-        messageType: 'TEXT' as any
+        messageType: 'TEXT'
       }
     });
 
@@ -369,7 +382,7 @@ router.post('/send-message', async (req, res) => {
     const dbMessage = await prisma.chatMessage.create({
       data: {
         chatSessionId: sessionId,
-        sender: sender.toUpperCase() as any,
+        sender: sender.toUpperCase() === 'CUSTOMER' ? 'CUSTOMER' : 'AI',
         content,
         messageType: 'TEXT'
       }
@@ -390,7 +403,7 @@ router.post('/send-message', async (req, res) => {
     // If it's a customer message, generate AI response
     if (sender === 'customer') {
       // Convert database messages to ChatMessage instances for AI service
-      const chatHistory = dbSession.messages.map(msg => new ChatMessage({
+      const chatHistory = dbSession.messages.map((msg: { chatSessionId: string; sender: string; content: string; timestamp: Date; messageType: string; }) => new ChatMessage({
         chatSessionId: msg.chatSessionId,
         sender: msg.sender.toLowerCase() as any,
         content: msg.content,
@@ -409,14 +422,14 @@ router.post('/send-message', async (req, res) => {
       await prisma.chatMessage.create({
         data: {
           chatSessionId: sessionId,
-          sender: 'AI' as any,
+          sender: 'AI',
           content: aiResponse.content,
-          messageType: messageType as any,
+          messageType: messageType as 'TEXT' | 'PAYMENT_LINK',
         }
       });
       
       // Also update the messageType in the object being sent to the client
-      aiResponse.messageType = messageType;
+      (aiResponse as any).messageType = messageType;
 
       io.to(sessionId).emit('receive-message', aiResponse);
 
@@ -433,7 +446,7 @@ router.post('/send-message', async (req, res) => {
 // Handle payment confirmation and generate AI follow-up message
 router.post('/payment-confirmed', async (req, res) => {
   try {
-    const { sessionId, customerId, amount, paymentId } = req.body;
+    const { sessionId, customerId, amount } = req.body;
 
     if (!sessionId || !customerId) {
       return res.status(400).json({ error: 'Session ID and Customer ID are required' });
@@ -456,7 +469,7 @@ router.post('/payment-confirmed', async (req, res) => {
     }
 
     // Convert database messages to ChatMessage instances for AI service
-    const chatHistory = dbSession.messages.map(msg => new ChatMessage({
+    const chatHistory = dbSession.messages.map((msg: { chatSessionId: string; sender: string; content: string; timestamp: Date; messageType: string; }) => new ChatMessage({
       chatSessionId: msg.chatSessionId,
       sender: msg.sender.toLowerCase() as any,
       content: msg.content,
@@ -467,10 +480,10 @@ router.post('/payment-confirmed', async (req, res) => {
     // Create a system message about payment confirmation
     const paymentConfirmationMessage = new ChatMessage({
       chatSessionId: sessionId,
-      sender: 'system',
+      sender: 'SYSTEM' as any,
       content: `PAYMENT_CONFIRMED: Customer payment of R$ ${amount} was successfully processed. Please confirm the payment to the customer, thank them, and say goodbye to complete the interaction.`,
       timestamp: new Date(),
-      messageType: 'system'
+      messageType: 'SYSTEM' as any
     });
 
     console.log('=== Payment Confirmation Debug ===');
@@ -490,9 +503,9 @@ router.post('/payment-confirmed', async (req, res) => {
     await prisma.chatMessage.create({
       data: {
         chatSessionId: sessionId,
-        sender: 'AI' as any,
+        sender: 'AI',
         content: aiResponse.content,
-        messageType: 'TEXT' as any
+        messageType: 'TEXT'
       }
     });
 

@@ -84,13 +84,11 @@ export class QueueService {
       const dbCustomer = await prisma.customer.findUnique({
         where: { id: customerId },
         include: {
-          paymentMethods: true,
           riskFactors: true,
           interventions: {
             orderBy: { date: 'desc' },
             take: 5
-          },
-          paymentStatus: true
+          }
         }
       });
 
@@ -115,18 +113,7 @@ export class QueueService {
         serviceType: dbCustomer.serviceType,
         billingCycle: dbCustomer.billingCycle.toLowerCase(),
         nextBillingDate: dbCustomer.nextBillingDate.toISOString(),
-        paymentMethod: dbCustomer.paymentMethods?.[0] ? {
-          id: dbCustomer.paymentMethods[0].id,
-          cardType: dbCustomer.paymentMethods[0].cardType?.toLowerCase() || '',
-          lastFourDigits: '****', // Don't expose real data
-          expiryMonth: 0,
-          expiryYear: 0,
-          status: dbCustomer.paymentMethods[0].status.toLowerCase(),
-          failureCount: dbCustomer.paymentMethods[0].failureCount,
-          lastFailureDate: dbCustomer.paymentMethods[0].lastFailureDate?.toISOString(),
-          lastSuccessDate: dbCustomer.paymentMethods[0].lastSuccessDate?.toISOString()
-        } : undefined,
-        riskFactors: dbCustomer.riskFactors?.map(rf => rf.factor) || [],
+        riskFactors: dbCustomer.riskFactors?.map((rf: any) => rf.factor) || [],
         interventionHistory: dbCustomer.interventions?.map(intervention => ({
           date: intervention.date.toISOString(),
           outcome: intervention.outcome.toLowerCase(),
@@ -335,9 +322,7 @@ export class QueueService {
 
     // Determine payment issue based on risk category
     let paymentIssue = 'payment-failure';
-    if (customer.riskCategory === 'expiring-card') {
-      paymentIssue = 'card-expiring-soon';
-    } else if (customer.riskCategory === 'multiple-failures') {
+    if (customer.riskCategory === 'multiple-failures') {
       paymentIssue = 'multiple-payment-failures';
     }
 
@@ -522,7 +507,8 @@ export class QueueService {
           include: {
             riskFactors: true,
             chatSessions: true,
-            paymentTransactions: true
+            paymentTransactions: true,
+            interventions: true
           }
         });
 
@@ -542,19 +528,8 @@ export class QueueService {
           serviceType: dbCustomer.serviceType,
           billingCycle: dbCustomer.billingCycle.toLowerCase(),
           nextBillingDate: dbCustomer.nextBillingDate.toISOString(),
-          paymentMethod: dbCustomer.paymentMethods?.[0] ? {
-            id: dbCustomer.paymentMethods[0].id,
-            cardType: dbCustomer.paymentMethods[0].cardType?.toLowerCase() || '',
-            lastFourDigits: '****', // Don't expose real data
-            expiryMonth: 0,
-            expiryYear: 0,
-            status: dbCustomer.paymentMethods[0].status.toLowerCase(),
-            failureCount: dbCustomer.paymentMethods[0].failureCount,
-            lastFailureDate: dbCustomer.paymentMethods[0].lastFailureDate?.toISOString(),
-            lastSuccessDate: dbCustomer.paymentMethods[0].lastSuccessDate?.toISOString()
-          } : undefined,
           riskFactors: dbCustomer.riskFactors?.map(rf => rf.factor) || [],
-          interventionHistory: dbCustomer.interventions?.map(intervention => ({
+          interventionHistory: dbCustomer.interventions?.map((intervention: any) => ({
             date: intervention.date.toISOString(),
             outcome: intervention.outcome.toLowerCase(),
             notes: intervention.notes || ''

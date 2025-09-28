@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import Customer from '../../../../backend/src/models/customer';
+import { Customer } from '../types/customer';
 import CustomerCard from './CustomerCard';
 import QueueDashboard from './QueueDashboard';
 import { Users, List } from 'lucide-react'; // Using lucide-react for icons

@@ -1,4 +1,4 @@
-import { PaymentMethod } from '../../../../backend/src/models/paymentMethod';
+import { PaymentMethod } from '../types/paymentMethod';
 
 class PaymentService {
   async updatePaymentMethod(customerId: string, cardDetails: object): Promise<PaymentMethod> {

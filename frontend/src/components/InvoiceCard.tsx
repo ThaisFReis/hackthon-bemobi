@@ -11,7 +11,6 @@ interface InvoiceCardProps {
 }
 
 const InvoiceCard: React.FC<InvoiceCardProps> = ({
-  customerName,
   accountNumber,
   brandName,
   dueDate,
