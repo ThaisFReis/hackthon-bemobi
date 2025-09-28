@@ -32,8 +32,7 @@ const ObservabilityDashboard: React.FC = () => {
   const [loadingBusiness, setLoadingBusiness] = useState<boolean>(true);
   const [loadingTimeSeries, setLoadingTimeSeries] = useState<boolean>(true);
 
-  // Fetch data on component mount and when filters change
-  useEffect(() => {
+  const handleRefresh = () => {
     const fetchData = async () => {
       try {
         setLoadingKpis(true);
@@ -77,13 +76,12 @@ const ObservabilityDashboard: React.FC = () => {
     };
 
     fetchData();
+  };
 
-    // Set up auto-refresh interval (every 30 seconds)
-    const refreshInterval = setInterval(() => {
-      fetchData();
-    }, 30000);
-
-    return () => clearInterval(refreshInterval);
+  useEffect(() => {
+    setTimeout(() => {
+      handleRefresh();
+    }, 1000);
   }, [timeRange]);
 
   return (
@@ -146,11 +144,12 @@ const ObservabilityDashboard: React.FC = () => {
           </select>
         </div>
 
-        <div className="ml-auto self-end">
-          <span className="text-xs text-gray-500">
-            Atualização automática a cada 30s
-          </span>
-        </div>
+        <button
+          onClick={handleRefresh}
+          className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+        >
+          Atualizar Dados
+        </button>
       </div>
 
       {/* KPI Cards */}
@@ -234,7 +233,7 @@ const ObservabilityDashboard: React.FC = () => {
               <LineChart
                 title="Tendência de Taxa de Sucesso"
                 subtitle="Últimos 7 dias"
-                data={timeSeriesMetrics?.timeSeriesData || []}
+                data={loadingTimeSeries ? [{ date: 'Loading', successRate: 0 }] : timeSeriesMetrics?.timeSeriesData || []}
                 xKey="date"
                 yKeys={[
                   { key: 'successRate', color: '#52c41a', name: 'Taxa de Sucesso (%)' },
@@ -244,7 +243,7 @@ const ObservabilityDashboard: React.FC = () => {
               <BarChart
                 title="Distribuição de Tempo de Resposta"
                 subtitle="Segmentação por faixa de tempo"
-                data={timeSeriesMetrics?.responseTimeDistribution || []}
+                data={loadingTimeSeries ? [{ range: 'Loading', count: 0 }] : timeSeriesMetrics?.responseTimeDistribution || []}
                 xKey="range"
                 yKeys={[
                   { key: 'count', color: '#1890ff', name: 'Quantidade de Interações' },
@@ -253,19 +252,19 @@ const ObservabilityDashboard: React.FC = () => {
               />
             </div>
 
-            <PipelineChart
-              title="Tempo por Etapa do Pipeline"
-              subtitle="Latência média por componente do sistema"
-              data={
-                conversationMetrics?.latencyByStep.map(item => ({
-                  step: item.step,
-                  time: item.averageLatency / 1000, // Convert ms to seconds
-                })) || []
-              }
-              loading={loadingConversation}
-              height={350}
-            />
-          </div>
+           <PipelineChart
+             title="Tempo por Etapa do Pipeline"
+             subtitle="Latência média por componente do sistema"
+             data={loadingConversation ? [{ step: 'Loading', time: 0 }] :
+               conversationMetrics?.latencyByStep.map(item => ({
+                 step: item.step,
+                 time: item.averageLatency / 1000, // Convert ms to seconds
+               })) || []
+             }
+             loading={loadingConversation}
+             height={350}
+           />
+         </div>
         )}
 
         {/* Conversação Tab */}
@@ -275,7 +274,7 @@ const ObservabilityDashboard: React.FC = () => {
               <LineChart
                 title="Tendência de Taxa de Sucesso"
                 subtitle="Evolução diária"
-                data={conversationMetrics?.successRateTrend || []}
+                data={loadingConversation ? [{ date: 'Loading', rate: 0 }] : conversationMetrics?.successRateTrend || []}
                 xKey="date"
                 yKeys={[
                   { key: 'rate', color: '#52c41a', name: 'Taxa de Sucesso (%)' },
@@ -285,7 +284,7 @@ const ObservabilityDashboard: React.FC = () => {
               <BarChart
                 title="Métricas de Qualidade da Conversa"
                 subtitle="Escala de 0-100"
-                data={[
+                data={loadingConversation ? [{ metric: 'Loading', value: 0 }] : [
                   {
                     metric: 'Naturalidade',
                     value: conversationMetrics?.qualityMetrics.naturalness ? conversationMetrics.qualityMetrics.naturalness * 100 : 0,
@@ -308,84 +307,17 @@ const ObservabilityDashboard: React.FC = () => {
               />
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Precisão de Classificação de Intenção</h3>
-                <div className="flex items-center">
-                  <div
-                    className="h-4 rounded-full bg-blue-500"
-                    style={{ width: `${conversationMetrics?.intentAccuracy || 0}%` }}
-                  />
-                  <span className="ml-4 text-lg font-semibold">
-                    {conversationMetrics?.intentAccuracy.toFixed(1) || 0}%
-                  </span>
-                </div>
-                <p className="mt-2 text-sm text-gray-500">
-                  Baseado em análise de {conversationMetrics?.qualityMetrics.sampleSize || 0} conversas
-                </p>
-              </div>
-
-              <BarChart
-                title="Distribuição de Tempo de Resposta"
-                subtitle="Segmentação por faixa de tempo"
-                data={timeSeriesMetrics?.responseTimeDistribution || []}
-                xKey="range"
-                yKeys={[
-                  { key: 'count', color: '#1890ff', name: 'Quantidade de Interações' },
-                ]}
-                loading={loadingTimeSeries}
-              />
-            </div>
-          </div>
+           </div>
         )}
 
         {/* Impacto de Negócio Tab */}
         {activeTab === 'business' && (
           <div className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <h3 className="text-lg font-medium text-gray-900 mb-2">ROI da IA</h3>
-                <p className="text-sm text-gray-500 mb-4">Retorno sobre investimento</p>
-                
-                <div className="flex items-baseline">
-                  <span className="text-3xl font-bold text-green-600">
-                    {businessMetrics?.roi.toFixed(1) || 0}%
-                  </span>
-                  <span className="ml-2 text-sm text-gray-500">ROI</span>
-                </div>
-                
-                <div className="mt-4 grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-gray-500">Custo IA</p>
-                    <p className="text-lg font-medium">
-                      R$ {businessMetrics?.costComparison.aiCost.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || 0}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Custo Humano</p>
-                    <p className="text-lg font-medium">
-                      R$ {businessMetrics?.costComparison.humanCost.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || 0}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Economia</p>
-                    <p className="text-lg font-medium text-green-600">
-                      R$ {businessMetrics?.costComparison.savings.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || 0}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Economia %</p>
-                    <p className="text-lg font-medium text-green-600">
-                      {businessMetrics?.costComparison.savingsPercentage.toFixed(1) || 0}%
-                    </p>
-                  </div>
-                </div>
-              </div>
-
               <BarChart
                 title="Performance por Vertical"
                 subtitle="Taxa de sucesso e valor recuperado"
-                data={businessMetrics?.verticalPerformance || []}
+                data={loadingBusiness ? [{ name: 'Loading', successRate: 0 }] : businessMetrics?.verticalPerformance || []}
                 xKey="name"
                 yKeys={[
                   { key: 'successRate', color: '#52c41a', name: 'Taxa de Sucesso (%)' },
@@ -394,55 +326,53 @@ const ObservabilityDashboard: React.FC = () => {
               />
             </div>
 
-            <div className="grid grid-cols-1 gap-6">
-              <HeatMap
-                title="Recuperação de Receita por Região"
-                subtitle="Valor total recuperado em R$"
-                data={
-                  businessMetrics?.regionalData.map(item => ({
-                    region: item.region,
-                    value: item.recoveryAmount,
-                  })) || []
-                }
-                valueLabel="R$"
-                loading={loadingBusiness}
-                height={400}
-              />
-            </div>
+           <div className="grid grid-cols-1 gap-6">
+             <HeatMap
+               title="Recuperação de Receita por Região"
+               subtitle="Valor total recuperado em R$"
+               data={loadingBusiness ? [{ region: 'Loading', value: 0 }] :
+                 businessMetrics?.regionalData.map(item => ({
+                   region: item.region,
+                   value: item.recoveryAmount,
+                 })) || []
+               }
+               valueLabel="R$"
+               loading={loadingBusiness}
+               height={400}
+             />
+           </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <BarChart
-                title="Comparação IA vs Humano"
-                subtitle="Métricas de performance"
-                data={[
-                  { metric: 'Custo Médio', ai: businessMetrics?.costComparison.aiCost || 0, human: businessMetrics?.costComparison.humanCost || 0 },
-                  { metric: 'Tempo Médio (min)', ai: kpiData?.averageResolutionTime || 0, human: 45 },
-                  { metric: 'NPS', ai: kpiData?.nps?.score || 0, human: 7.2 },
-                ]}
-                xKey="metric"
-                yKeys={[
-                  { key: 'ai', color: '#1890ff', name: 'IA' },
-                  { key: 'human', color: '#faad14', name: 'Humano' },
-                ]}
-                loading={loadingBusiness || loadingKpis}
-              />
+           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+             <BarChart
+               title="Comparação IA vs Humano"
+               subtitle="Métricas de performance"
+               data={loadingBusiness || loadingKpis ? [{ metric: 'Loading', ai: 0, human: 0 }] : [
+                 { metric: 'Custo Médio', ai: businessMetrics?.costComparison.aiCost || 0, human: businessMetrics?.costComparison.humanCost || 0 },
+                 { metric: 'Tempo Médio (min)', ai: kpiData?.averageResolutionTime || 0, human: 45 },
+                 { metric: 'NPS', ai: kpiData?.nps?.score || 0, human: 7.2 },
+               ]}
+               xKey="metric"
+               yKeys={[
+                 { key: 'ai', color: '#1890ff', name: 'IA' },
+                 { key: 'human', color: '#faad14', name: 'Humano' },
+               ]}
+               loading={loadingBusiness || loadingKpis}
+             />
 
-              <LineChart
-                title="Evolução de Custos"
-                subtitle="Últimos 7 dias"
-                data={timeSeriesMetrics?.timeSeriesData || []}
-                xKey="date"
-                yKeys={[
-                  { key: 'aiCost', color: '#1890ff', name: 'Custo IA (R$)' },
-                  { key: 'humanCost', color: '#faad14', name: 'Custo Humano (R$)' },
-                ]}
-                loading={loadingTimeSeries}
-              />
-            </div>
-          </div>
+             <LineChart
+               title="Evolução de Custos"
+               subtitle="Últimos 7 dias"
+               data={loadingTimeSeries ? [{ date: 'Loading', aiCost: 0, humanCost: 0 }] : timeSeriesMetrics?.timeSeriesData || []}
+               xKey="date"
+               yKeys={[
+                 { key: 'aiCost', color: '#1890ff', name: 'Custo IA (R$)' },
+                 { key: 'humanCost', color: '#faad14', name: 'Custo Humano (R$)' },
+               ]}
+               loading={loadingTimeSeries}
+             />
+           </div>
+         </div>
         )}
-
-
       </div>
     </div>
   );

@@ -150,7 +150,7 @@ export class MetricsEnrichmentService {
         const endTime = new Date(date);
         endTime.setHours(23, 59, 59, 999);
         
-        const traces = await this.langsmithService.getConversationTraces(50, startTime.toISOString(), endTime.toISOString());
+        const traces = await this.langsmithService.getConversationTraces(50, process.env.LANGCHAIN_PROJECT, startTime.toISOString(), endTime.toISOString());
         
         // Calculate success rate for this day
         const successfulTraces = traces.filter(trace => 
@@ -188,7 +188,7 @@ export class MetricsEnrichmentService {
     try {
       // Get token usage for cost calculation
       const tokenUsage = await this.langsmithService.getTokenUsageMetrics();
-      const traces = await this.langsmithService.getConversationTraces(200);
+      const traces = await this.langsmithService.getConversationTraces(100);
       
       // Enrich with cost comparison
       const enrichedData = this.enrichWithHumanCostComparison(tokenUsage);
@@ -313,7 +313,7 @@ export class MetricsEnrichmentService {
         const endTime = new Date(date);
         endTime.setHours(23, 59, 59, 999);
         
-        const traces = await this.langsmithService.getConversationTraces(50, startTime.toISOString(), endTime.toISOString());
+        const traces = await this.langsmithService.getConversationTraces(50, process.env.LANGCHAIN_PROJECT, startTime.toISOString(), endTime.toISOString());
         
         // Calculate metrics from traces
         const successfulTraces = traces.filter(trace => 

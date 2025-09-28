@@ -1,5 +1,6 @@
-import { Client } from 'langsmith';
+import { Client, Run } from 'langsmith';
 import dotenv from 'dotenv';
+import pRetry from 'p-retry';
 
 dotenv.config();
 
@@ -20,13 +21,31 @@ export class LangsmithService {
    * @param projectName Optional project name filter
    * @returns Array of conversation traces
    */
-  async getConversationTraces(limit = 100, projectName?: string) {
-    try {
-      const runs = await this.client.listRuns({
-        projectName,
-        limit,
-      });
+  async getConversationTraces(limit = 100, projectName: string = process.env.LANGCHAIN_PROJECT || 'gemini-churn-prevention', startTime?: string, endTime?: string) {
+    const run = async () => {
+      const query: any = { limit, projectName };
+       if (startTime && endTime) {
+        query.startTime = startTime;
+        query.endTime = endTime;
+      }
+      const response = await this.client.listRuns(query);
+      const runs: Run[] = [];
+      for await (const run of response) {
+        runs.push(run);
+      }
       return runs;
+    }
+
+    try {
+      return await pRetry(run, {
+        retries: 5,
+        factor: 2,
+        minTimeout: 1000,
+        maxTimeout: 10000,
+        onFailedAttempt: (error) => {
+          console.log(`Attempt ${error.attemptNumber} failed. There are ${error.retriesLeft} retries left.`);
+        },
+      });
     } catch (error) {
       console.error('Error fetching conversation traces:', error);
       throw error;
@@ -39,24 +58,40 @@ export class LangsmithService {
    * @param projectName Optional project name filter
    * @returns Token usage statistics
    */
-  async getTokenUsageMetrics(limit = 100, projectName?: string) {
+  async getTokenUsageMetrics(limit = 100, projectName: string = process.env.LANGCHAIN_PROJECT || 'gemini-churn-prevention') {
+    const run = async () => {
+      const query: any = { limit, projectName };
+      const response = await this.client.listRuns(query);
+      const runs: Run[] = [];
+      for await (const run of response) {
+        runs.push(run);
+      }
+
+      return runs;
+    }
+
     try {
-      const runs = await this.client.listRuns({
-        projectName,
-        limit,
+      const runs = await pRetry(run, {
+        retries: 5,
+        factor: 2,
+        minTimeout: 1000,
+        maxTimeout: 10000,
+        onFailedAttempt: (error) => {
+          console.log(`Attempt ${error.attemptNumber} failed. There are ${error.retriesLeft} retries left.`);
+        },
       });
 
       // Aggregate token usage data
       const tokenUsage = runs.reduce(
         (acc, run) => {
-          const tokenCount = run.metrics?.['token_count'] || 0;
-          const promptTokens = run.metrics?.['prompt_tokens'] || 0;
-          const completionTokens = run.metrics?.['completion_tokens'] || 0;
+          const tokenCount = run.metrics?.['token_count'] ?? 0;
+          const promptTokens = run.metrics?.['prompt_tokens'] ?? 0;
+          const completionTokens = run.outputs?.['completion_tokens'] ?? 0;
           
           return {
-            totalTokens: acc.totalTokens + tokenCount,
-            promptTokens: acc.promptTokens + promptTokens,
-            completionTokens: acc.completionTokens + completionTokens,
+            totalTokens: acc.totalTokens + (tokenCount),
+            promptTokens: acc.promptTokens + (promptTokens),
+            completionTokens: acc.completionTokens + (completionTokens),
             runCount: acc.runCount + 1,
           };
         },
@@ -79,19 +114,35 @@ export class LangsmithService {
    * @param projectName Optional project name filter
    * @returns Latency statistics by step
    */
-  async getLatencyByStep(limit = 100, projectName?: string) {
+  async getLatencyByStep(limit = 100, projectName: string = process.env.LANGCHAIN_PROJECT || 'gemini-churn-prevention') {
+     const run = async () => {
+      const query: any = { limit, projectName };
+      const response = await this.client.listRuns(query);
+      const runs: Run[] = [];
+      for await (const run of response) {
+        runs.push(run);
+      }
+
+      return runs;
+    }
+
     try {
-      const runs = await this.client.listRuns({
-        projectName,
-        limit,
+      const runs = await pRetry(run, {
+        retries: 5,
+        factor: 2,
+        minTimeout: 1000,
+        maxTimeout: 10000,
+        onFailedAttempt: (error) => {
+          console.log(`Attempt ${error.attemptNumber} failed. There are ${error.retriesLeft} retries left.`);
+        },
       });
 
       // Group runs by step name and calculate latency statistics
       const stepLatencies: Record<string, { totalLatency: number; count: number }> = {};
       
-      runs.forEach(run => {
+      runs.forEach((run) => {
         const stepName = run.name || 'unknown';
-        const latency = run.end_time && run.start_time 
+        const latency = run.end_time && run.start_time
           ? new Date(run.end_time).getTime() - new Date(run.start_time).getTime() 
           : 0;
         
@@ -123,24 +174,40 @@ export class LangsmithService {
    * @param projectName Optional project name filter
    * @returns Quality metrics statistics
    */
-  async getQualityMetrics(limit = 100, projectName?: string) {
+  async getQualityMetrics(limit = 100, projectName: string = process.env.LANGCHAIN_PROJECT || 'gemini-churn-prevention') {
+    const run = async () => {
+      const query: any = { limit, projectName };
+      const response = await this.client.listRuns(query);
+      const runs: Run[] = [];
+      for await (const run of response) {
+        runs.push(run);
+      }
+
+      return runs;
+    }
+
     try {
-      const runs = await this.client.listRuns({
-        projectName,
-        limit,
+      const runs = await pRetry(run, {
+        retries: 5,
+        factor: 2,
+        minTimeout: 1000,
+        maxTimeout: 10000,
+        onFailedAttempt: (error) => {
+          console.log(`Attempt ${error.attemptNumber} failed. There are ${error.retriesLeft} retries left.`);
+        },
       });
 
       // Extract quality metrics from runs
       const qualityMetrics = runs.reduce(
         (acc, run) => {
-          const coherence = run.metrics?.['coherence'] || 0;
-          const relevance = run.metrics?.['relevance'] || 0;
-          const naturalness = run.metrics?.['naturalness'] || 0;
+          const coherence = run.metrics?.['coherence'] ?? 0;
+          const relevance = run.metrics?.['relevance'] ?? 0;
+          const naturalness = run.outputs?.['naturalness'] ?? 0;
           
           return {
-            coherenceSum: acc.coherenceSum + coherence,
-            relevanceSum: acc.relevanceSum + relevance,
-            naturalnessSum: acc.naturalnessSum + naturalness,
+            coherenceSum: acc.coherenceSum + (coherence),
+            relevanceSum: acc.relevanceSum + (relevance),
+            naturalnessSum: acc.naturalnessSum + (naturalness),
             runCount: acc.runCount + (coherence || relevance || naturalness ? 1 : 0),
           };
         },
@@ -165,21 +232,37 @@ export class LangsmithService {
    * @param projectName Optional project name filter
    * @returns Intent classification accuracy statistics
    */
-  async getIntentClassificationMetrics(limit = 100, projectName?: string) {
+  async getIntentClassificationMetrics(limit = 100, projectName: string = process.env.LANGCHAIN_PROJECT || 'gemini-churn-prevention') {
+    const run = async () => {
+      const query: any = { limit, projectName };
+      const response = await this.client.listRuns(query);
+      const runs: Run[] = [];
+      for await (const run of response) {
+        runs.push(run);
+      }
+
+      return runs;
+    }
+
     try {
-      const runs = await this.client.listRuns({
-        projectName,
-        limit,
+      const runs = await pRetry(run, {
+        retries: 5,
+        factor: 2,
+        minTimeout: 1000,
+        maxTimeout: 10000,
+        onFailedAttempt: (error) => {
+          console.log(`Attempt ${error.attemptNumber} failed. There are ${error.retriesLeft} retries left.`);
+        },
       });
 
       // Extract intent classification metrics
       const intentMetrics = runs.reduce(
         (acc, run) => {
-          const intentAccuracy = run.metrics?.['intent_accuracy'] || 0;
-          const hasIntentData = run.metrics?.hasOwnProperty('intent_accuracy') || false;
+          const intentAccuracy = run.metrics?.['intent_accuracy'] ?? 0;
+          const hasIntentData = run.outputs?.hasOwnProperty('intent_accuracy') ?? false;
           
           return {
-            accuracySum: acc.accuracySum + intentAccuracy,
+            accuracySum: acc.accuracySum + (intentAccuracy),
             runCount: acc.runCount + (hasIntentData ? 1 : 0),
           };
         },
