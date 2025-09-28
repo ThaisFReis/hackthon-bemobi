@@ -17,7 +17,7 @@ services:
       - key: LANGCHAIN_TRACING_V2
         value: "true"
       - key: LANGCHAIN_API_KEY
-        fromSecret: langchain-api-key
+        fromSecret: "langchain-api-key"
       - key: LANGCHAIN_PROJECT
         value: "gemini-churn-prevention"
       - key: LANGCHAIN_ENDPOINT
@@ -48,15 +48,15 @@ services:
         value: "false"
       - key: DATABASE_URL
         fromDatabase:
-          name: poc-bemobi-db
-          property: connectionString
+          name: "poc-bemobi-db"
+          property: "connectionString"
       - key: DIRECT_URL
         fromDatabase:
-          name: poc-bemobi-db
-          property: connectionString
+          name: "poc-bemobi-db"
+          property: "connectionString"
 
 databases:
-  - name: poc-bemobi-db
+  - name: "poc-bemobi-db"
     databaseName: poc_bemobi
     user: poc_bemobi_user
     plan: starter
