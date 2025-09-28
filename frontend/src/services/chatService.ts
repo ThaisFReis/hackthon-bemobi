@@ -1,4 +1,4 @@
-import { ChatMessage } from '../../../../backend/src/models/chatMessage';
+import { ChatMessage } from '../types/chatMessage';
 
 class ChatService {
   private socket: WebSocket | null = null;

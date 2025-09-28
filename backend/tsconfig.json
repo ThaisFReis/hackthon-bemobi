@@ -1,13 +1,14 @@
 {
   "compilerOptions": {
-    "target": "es2022",
-    "module": "es2022",
-    "lib": ["ES2020"],
+    "target": "ES2022",
+    "module": "CommonJS",
+    "lib": ["ES2022", "es2020"],
     "outDir": "./dist",
     "rootDir": "./src",
     "moduleResolution": "node",
     "strict": true,
     "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
@@ -23,7 +24,8 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": true,
     "experimentalDecorators": true,
-    "emitDecoratorMetadata": true
+    "emitDecoratorMetadata": true,
+    "useDefineForClassFields": false
   },
   "include": [
     "src/**/*"

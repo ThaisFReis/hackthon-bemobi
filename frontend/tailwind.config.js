@@ -31,10 +31,33 @@ export default {
           600: '#d97706',
           700: '#b45309',
         },
+        'whatsapp': {
+          header: '#005E54',
+          'chat-bg': '#efeae2',
+          'bubble-out': '#d9fdd3',
+          'bubble-in': '#ffffff',
+          green: '#075e54',
+          'green-light': '#25d366',
+          text: '#111b21',
+          'text-meta': 'rgba(0, 0, 0, 0.6)',
+          'input-bg': '#f0f2f5',
+        }
       },
       animation: {
         'pulse-fast': 'pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+        'message-in': 'message-in 0.3s cubic-bezier(0.25, 0.1, 0.25, 1) forwards',
+        'typing-bounce': 'typing-bounce 1.4s infinite ease-in-out both',
       },
+      keyframes: {
+        'message-in': {
+          '0%': { opacity: '0', transform: 'translateY(20px) scale(0.95)' },
+          '100%': { opacity: '1', transform: 'translateY(0) scale(1)' },
+        },
+        'typing-bounce': {
+          '0%, 80%, 100%': { transform: 'scale(0)' },
+          '40%': { transform: 'scale(1.0)' },
+        }
+      }
     },
   },
   plugins: [],

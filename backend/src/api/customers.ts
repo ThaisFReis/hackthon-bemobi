@@ -1,69 +1,112 @@
 import express from 'express';
+import { prisma } from '../lib/prisma';
 import Customer from '../models/customer';
-import * as fs from 'fs';
-import * as path from 'path';
 
 const router = express.Router();
 
-// Load customers from JSON file
-function loadCustomersFromJSON(): Customer[] {
-  try {
-    const dataPath = path.join(__dirname, '../../data/mockCustomers.json');
-    const jsonData = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
-
-    const customers = jsonData.customers.map((customerData: any) => {
-      return new Customer(customerData);
-    });
-
-    console.log(`Loaded ${customers.length} customers from JSON file`);
-    return customers;
-  } catch (error) {
-    console.error('Error loading customers from JSON:', error);
-
-    // Fallback to minimal data if JSON fails to load
-    return [
-      new Customer({
-        id: 'cust_fallback',
-        name: 'Fallback Customer',
-        email: 'fallback@example.com',
-        accountStatus: 'at-risk',
-        riskCategory: 'failed-payment',
-        riskSeverity: 'medium',
-        accountValue: 5000,
-        customerSince: '2023-01-01T00:00:00.000Z',
-        lastPaymentDate: '2025-01-01T00:00:00.000Z',
-        serviceProvider: 'Generic Provider',
-        serviceType: 'Basic Service'
-      })
-    ];
-  }
+// Helper function to convert database customer to Customer model
+function convertDbCustomerToModel(dbCustomer: any): Customer {
+  return new Customer({
+    id: dbCustomer.id,
+    name: dbCustomer.name,
+    email: dbCustomer.email,
+    phone: dbCustomer.phone,
+    accountStatus: dbCustomer.accountStatus.toLowerCase().replace('_', '-'),
+    riskCategory: dbCustomer.riskCategory.toLowerCase().replace('_', '-'),
+    riskSeverity: dbCustomer.riskSeverity.toLowerCase(),
+    lastPaymentDate: dbCustomer.lastPaymentDate?.toISOString(),
+    accountValue: Number(dbCustomer.accountValue),
+    customerSince: dbCustomer.customerSince.toISOString(),
+    serviceProvider: dbCustomer.serviceProvider,
+    serviceType: dbCustomer.serviceType,
+    billingCycle: dbCustomer.billingCycle.toLowerCase(),
+    nextBillingDate: dbCustomer.nextBillingDate.toISOString(),
+    riskFactors: dbCustomer.riskFactors?.map((rf: any) => rf.factor) || [],
+    interventionHistory: dbCustomer.interventions?.map((intervention: any) => ({
+      date: intervention.date.toISOString(),
+      outcome: intervention.outcome.toLowerCase(),
+      notes: intervention.notes
+    })) || []
+  });
 }
 
-// Load customers on module initialization
-const mockCustomers: Customer[] = loadCustomersFromJSON();
-
 // Get all customers
-router.get('/', (req, res) => {
-  return res.json(mockCustomers);
+router.get('/', async (req, res) => {
+  try {
+    const dbCustomers = await prisma.customer.findMany({
+      include: {
+        riskFactors: true,
+        interventions: true,
+      },
+      orderBy: {
+        name: 'asc'
+      }
+    });
+
+    const customers = dbCustomers.map(convertDbCustomerToModel);
+    return res.json(customers);
+  } catch (error) {
+    console.error('Error fetching customers:', error);
+    return res.status(500).json({ error: 'Failed to fetch customers' });
+  }
 });
 
 // Get customers by status
-router.get('/status/:status', (req, res) => {
-  const { status } = req.params;
-  const filteredCustomers = mockCustomers.filter(customer => customer.accountStatus === status);
-  return res.json(filteredCustomers);
+router.get('/status/:status', async (req, res) => {
+  try {
+    const { status } = req.params;
+    const accountStatus = status.toUpperCase().replace('-', '_');
+
+    const dbCustomers = await prisma.customer.findMany({
+      where: {
+        accountStatus: accountStatus as any
+      },
+      include: {
+        riskFactors: true,
+        interventions: true,
+      },
+      orderBy: {
+        name: 'asc'
+      }
+    });
+
+    const customers = dbCustomers.map(convertDbCustomerToModel);
+    return res.json(customers);
+  } catch (error) {
+    console.error('Error fetching customers by status:', error);
+    return res.status(500).json({ error: 'Failed to fetch customers by status' });
+  }
 });
 
 // Get specific customer
-router.get('/:customerId', (req, res) => {
-  const { customerId } = req.params;
-  const customer = mockCustomers.find(c => c.id === customerId);
+router.get('/:customerId', async (req, res) => {
+  try {
+    const { customerId } = req.params;
 
-  if (!customer) {
-    return res.status(404).json({ error: 'Customer not found' });
+    const dbCustomer = await prisma.customer.findUnique({
+      where: {
+        id: customerId
+      },
+      include: {
+        riskFactors: true,
+        interventions: {
+          orderBy: {
+            date: 'desc'
+          }
+        },
+      }
+    });
+
+    if (!dbCustomer) {
+      return res.status(404).json({ error: 'Customer not found' });
+    }
+
+    const customer = convertDbCustomerToModel(dbCustomer);
+    return res.json(customer);
+  } catch (error) {
+    console.error('Error fetching customer:', error);
+    return res.status(500).json({ error: 'Failed to fetch customer' });
   }
-
-  return res.json(customer);
 });
 
 export default router;

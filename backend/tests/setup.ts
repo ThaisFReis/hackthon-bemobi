@@ -33,7 +33,6 @@ export const createMockCustomer = (overrides = {}) => ({
   name: 'Test Customer',
   email: 'test@example.com',
   accountStatus: 'at-risk',
-  riskCategory: 'expiring-card',
   riskSeverity: 'medium',
   lastPaymentDate: '2025-08-15',
   accountValue: 49.99,

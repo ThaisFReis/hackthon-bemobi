@@ -1,5 +1,5 @@
 export type AccountStatus = 'active' | 'at-risk' | 'resolved' | 'churned';
-export type RiskCategory = 'expiring-card' | 'failed-payment' | 'multiple-failures' | null;
+export type RiskCategory = 'failed-payment' | 'multiple-failures' | 'payment-failed' | null;
 export type RiskSeverity = 'low' | 'medium' | 'high' | 'critical';
 
 interface PaymentMethod {
@@ -83,7 +83,7 @@ class Customer {
   }
 
   static ACCOUNT_STATUSES: AccountStatus[] = ['active', 'at-risk', 'resolved', 'churned'];
-  static RISK_CATEGORIES: Exclude<RiskCategory, null>[] = ['expiring-card', 'failed-payment', 'multiple-failures'];
+  static RISK_CATEGORIES: Exclude<RiskCategory, null>[] = ['failed-payment', 'multiple-failures', 'payment-failed'];
   static RISK_SEVERITIES: RiskSeverity[] = ['low', 'medium', 'high', 'critical'];
 
   static STATE_TRANSITIONS: Record<AccountStatus, AccountStatus[]> = {
@@ -194,9 +194,6 @@ class Customer {
         break;
       case 'failed-payment':
         baseScore = 70;
-        break;
-      case 'expiring-card':
-        baseScore = 40;
         break;
       default:
         baseScore = 20;

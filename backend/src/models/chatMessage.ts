@@ -49,6 +49,11 @@ class ChatMessage {
   }
 
   validate() {
+    // Ensure content is a string
+    if (typeof this.content !== 'string') {
+      this.content = String(this.content || '');
+    }
+
     if (this.content.trim().length === 0) {
       throw new Error('content cannot be empty.');
     }

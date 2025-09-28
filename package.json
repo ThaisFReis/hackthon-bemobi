@@ -23,7 +23,15 @@
     "start:backend": "cd backend && npm start",
     "start:frontend": "cd frontend && npm run preview"
   },
-  "keywords": ["churn-prevention", "ai", "poc", "react", "nodejs", "stripe", "typescript"],
+  "keywords": [
+    "churn-prevention",
+    "ai",
+    "poc",
+    "react",
+    "nodejs",
+    "stripe",
+    "typescript"
+  ],
   "author": "POC Team",
   "license": "MIT",
   "devDependencies": {

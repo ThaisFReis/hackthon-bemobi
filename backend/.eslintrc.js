@@ -8,14 +8,13 @@ module.exports = {
   plugins: ['@typescript-eslint'],
   extends: [
     'eslint:recommended',
-    '@typescript-eslint/recommended',
-    '@typescript-eslint/recommended-requiring-type-checking',
   ],
   root: true,
   env: {
     node: true,
     jest: true,
     es6: true,
+    es2020: true,
   },
   ignorePatterns: ['.eslintrc.js', 'jest.config.js', 'dist/**/*'],
   rules: {

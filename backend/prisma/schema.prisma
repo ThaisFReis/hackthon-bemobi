@@ -1,0 +1,293 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum AccountStatus {
+  ACTIVE
+  AT_RISK
+  CHURNED
+  SUSPENDED
+}
+
+enum RiskCategory {
+  PAYMENT_FAILED
+  MULTIPLE_FAILURES
+  HIGH_VALUE
+  LOW_ENGAGEMENT
+}
+
+enum RiskSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum BillingCycle {
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
+enum PaymentStatusType {
+  SUCCESS
+  FAILED
+  PENDING
+  BLOCKED
+}
+
+enum FailureReason {
+  INSUFFICIENT_FUNDS
+  CARD_EXPIRED
+  CARD_DECLINED
+  INVALID_CARD
+  BANK_ERROR
+  UNKNOWN
+}
+
+enum ChatSessionStatus {
+  ACTIVE
+  COMPLETED
+  ABANDONED
+}
+
+enum MessageSender {
+  AI
+  CUSTOMER
+  SYSTEM
+}
+
+enum MessageType {
+  TEXT
+  AUDIO
+  SYSTEM
+  PAYMENT_LINK
+  DOCUMENT
+}
+
+enum InterventionOutcome {
+  SUCCESS
+  FAILED
+  NO_ANSWER
+  SCHEDULED
+}
+
+enum CardType {
+  VISA
+  MASTERCARD
+  AMEX
+  ELO
+  HIPERCARD
+}
+
+enum PaymentTransactionStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
+enum ContactMethod {
+  AI_CHAT
+  SMS
+  EMAIL
+  PHONE
+  WHATSAPP
+  PUSH_NOTIFICATION
+}
+
+enum ContactOutcome {
+  SUCCESSFUL
+  NO_ANSWER
+  DECLINED
+  PAYMENT_RESOLVED
+  RESCHEDULED
+  DO_NOT_CONTACT
+}
+
+enum ContactRestrictionType {
+  TEMPORARY_COOLDOWN
+  DO_NOT_CONTACT
+  PREFERRED_HOURS_ONLY
+  PAYMENT_RESOLVED
+  CUSTOMER_REQUEST
+}
+
+model Customer {
+  id                String        @id @default(cuid())
+  name              String        @db.VarChar(255)
+  email             String        @unique @db.VarChar(255)
+  phone             String        @db.VarChar(20)
+  serviceProvider   String        @db.VarChar(100)
+  serviceType       String        @db.VarChar(255)
+  accountValue      Decimal       @db.Decimal(10, 2)
+  riskCategory      RiskCategory
+  riskSeverity      RiskSeverity
+  accountStatus     AccountStatus @default(ACTIVE)
+  billingCycle      BillingCycle  @default(MONTHLY)
+  lastPaymentDate   DateTime?
+  nextBillingDate   DateTime
+  customerSince     DateTime
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  // Relacionamentos
+  riskFactors         RiskFactor[]
+  chatSessions        ChatSession[]
+  interventions       Intervention[]
+  paymentTransactions PaymentTransaction[]
+  contactLog          CustomerContactLog[]
+  contactRestrictions ContactRestriction[]
+
+  @@index([email])
+  @@index([accountStatus])
+  @@index([riskCategory, riskSeverity])
+  @@index([nextBillingDate])
+  @@map("customers")
+}
+
+model RiskFactor {
+  id          String   @id @default(cuid())
+  customerId  String
+  factor      String   @db.VarChar(100)
+  weight      Decimal  @db.Decimal(3, 2) @default(1.0)
+  createdAt   DateTime @default(now())
+
+  customer    Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@unique([customerId, factor])
+  @@index([customerId])
+  @@map("risk_factors")
+}
+
+model ChatSession {
+  id                String            @id @default(cuid())
+  customerId        String
+  customerName      String            @db.VarChar(255)
+  status            ChatSessionStatus @default(ACTIVE)
+  startTime         DateTime          @default(now())
+  endTime           DateTime?
+  paymentIssue      String?           @db.Text
+  outcome           String?           @db.Text
+
+  customer          Customer      @relation(fields: [customerId], references: [id])
+  messages          ChatMessage[]
+  paymentTransaction PaymentTransaction?
+
+  @@index([customerId])
+  @@index([status])
+  @@index([startTime])
+  @@map("chat_sessions")
+}
+
+model ChatMessage {
+  id                String         @id @default(cuid())
+  chatSessionId     String
+  sender            MessageSender
+  content           String         @db.Text
+  messageType       MessageType    @default(TEXT)
+  timestamp         DateTime       @default(now())
+  metadata          Json?
+
+  chatSession       ChatSession @relation(fields: [chatSessionId], references: [id], onDelete: Cascade)
+
+  @@index([chatSessionId])
+  @@index([timestamp])
+  @@map("chat_messages")
+}
+
+model Intervention {
+  id                String              @id @default(cuid())
+  customerId        String
+  date              DateTime            @default(now())
+  outcome           InterventionOutcome
+  notes             String?             @db.Text
+  revenueRecovered  Decimal?            @db.Decimal(10, 2)
+  agentId           String?             @db.VarChar(100)
+  duration          Int?                // in minutes
+
+  customer          Customer @relation(fields: [customerId], references: [id])
+
+  @@index([customerId])
+  @@index([date])
+  @@index([outcome])
+  @@map("interventions")
+}
+
+model PaymentTransaction {
+  id                  String                    @id @default(cuid())
+  customerId          String
+  amount              Decimal                   @db.Decimal(10, 2)
+  currency            String                    @default("BRL") @db.VarChar(3)
+  status              PaymentTransactionStatus  @default(PENDING)
+  transactionDate     DateTime                  @default(now())
+  paidDate            DateTime?                 // When payment was actually received
+  description         String?                   @db.Text
+  chatSessionId       String?                   @unique
+  chatSession         ChatSession?              @relation(fields: [chatSessionId], references: [id])
+
+  customer            Customer       @relation(fields: [customerId], references: [id])
+
+  @@index([customerId])
+  @@index([status])
+  @@index([transactionDate])
+  @@index([paidDate])
+  @@map("payment_transactions")
+}
+
+model CustomerContactLog {
+  id                String            @id @default(cuid())
+  customerId        String
+  contactMethod     ContactMethod
+  contactDate       DateTime          @default(now())
+  outcome           ContactOutcome?
+  notes             String?           @db.Text
+  agentId           String?           @db.VarChar(100) // AI agent, human agent, or system
+  sessionId         String?           @db.VarChar(255) // Chat session or call ID
+  contactDuration   Int?              // Duration in seconds
+  nextContactDate   DateTime?         // When next contact is scheduled/allowed
+  successful        Boolean           @default(false)
+  paymentResolved   Boolean           @default(false)
+  metadata          Json?             // Additional context data
+  createdAt         DateTime          @default(now())
+
+  customer          Customer @relation(fields: [customerId], references: [id])
+
+  @@index([customerId])
+  @@index([contactDate])
+  @@index([contactMethod])
+  @@index([outcome])
+  @@index([nextContactDate])
+  @@map("customer_contact_log")
+}
+
+model ContactRestriction {
+  id                String                  @id @default(cuid())
+  customerId        String
+  restrictionType   ContactRestrictionType
+  startDate         DateTime                @default(now())
+  endDate           DateTime?               // NULL means indefinite
+  reason            String?                 @db.Text
+  appliedBy         String?                 @db.VarChar(100) // Agent or system that applied restriction
+  isActive          Boolean                 @default(true)
+  metadata          Json?                   // Additional restriction parameters
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+
+  customer          Customer @relation(fields: [customerId], references: [id])
+
+  @@index([customerId])
+  @@index([restrictionType])
+  @@index([startDate])
+  @@index([endDate])
+  @@index([isActive])
+  @@map("contact_restrictions")
+}

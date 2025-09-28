@@ -131,7 +131,7 @@ export class TemplateService {
   }
 
   public getSystemPrompt(serviceCategory: string): string {
-    const prompts = {
+    const prompts: { [key: string]: string } = {
       telecom: `Você é um especialista em retenção de clientes de operadora de telefonia/internet.
       Foque em manter a linha/internet ativa e evitar perda do número. Use linguagem informal e amigável.
       Enfatize a conveniência e a necessidade de manter a conectividade.`,
@@ -145,42 +145,27 @@ export class TemplateService {
       Enfatize a importância de manter os estudos em dia e o investimento no futuro.`
     };
 
-    return prompts[serviceCategory] || prompts.telecom;
+    return prompts[serviceCategory] || prompts.telecom!
   }
 
   public shouldTriggerIntervention(customer: CustomerData): boolean {
     const now = new Date();
 
-    // Card expiring logic
-    if (customer.riskCategory === 'expiring-card') {
-      const daysUntilExpiry = this.calculateDaysUntilExpiry(
-        customer.paymentMethod.expiryMonth,
-        customer.paymentMethod.expiryYear
-      );
-
-      // Trigger 7 days before expiry for utilities (critical), 5 days for others
-      const serviceCategory = this.getServiceCategory(customer.serviceProvider);
-      const triggerDays = serviceCategory === 'utilities' ? 7 : 5;
-
-      return daysUntilExpiry <= triggerDays && daysUntilExpiry > 0;
-    }
-
     // Payment failed logic
     if (customer.riskCategory === 'failed-payment' || customer.riskCategory === 'multiple-failures') {
       // Trigger immediately for utilities, within 24 hours for others
-      const lastFailure = customer.paymentMethod.lastFailureDate ?
-        new Date(customer.paymentMethod.lastFailureDate) : null;
+      if (customer.paymentMethod.lastFailureDate) {
+        const lastFailure = new Date(customer.paymentMethod.lastFailureDate);
+        const hoursSinceFailure = (new Date().getTime() - lastFailure.getTime()) / (1000 * 60 * 60);
+        const serviceCategory = this.getServiceCategory(customer.serviceProvider);
 
-      if (!lastFailure) return true; // No failure date, trigger immediately
-
-      const hoursSinceFailure = (now.getTime() - lastFailure.getTime()) / (1000 * 60 * 60);
-      const serviceCategory = this.getServiceCategory(customer.serviceProvider);
-
-      if (serviceCategory === 'utilities') {
-        return hoursSinceFailure <= 4; // 4 hours for utilities
-      } else {
-        return hoursSinceFailure <= 24; // 24 hours for others
+        if (serviceCategory === 'utilities') {
+          return hoursSinceFailure <= 4; // 4 hours for utilities
+        } else {
+          return hoursSinceFailure <= 24; // 24 hours for others
+        }
       }
+      return true; // No failure date, trigger immediately
     }
 
     return false;
@@ -191,7 +176,7 @@ export class TemplateService {
     const serviceCategory = this.getServiceCategory(customer.serviceProvider);
 
     // Base priority by service type
-    const servicePriority = {
+    const servicePriority: { [key: string]: number } = {
       utilities: 40,     // Essential services
       education: 30,     // High value, academic impact
       telecom: 20        // Important but not critical
@@ -200,13 +185,14 @@ export class TemplateService {
     priority += servicePriority[serviceCategory] || 20;
 
     // Risk category multiplier
-    const riskMultiplier = {
+    const riskMultiplier: { [key: string]: number } = {
       'multiple-failures': 2.0,
       'failed-payment': 1.5,
-      'expiring-card': 1.2
+      'payment-failed': 1.5, // Alternative format from database conversion
     };
 
-    priority *= (riskMultiplier[customer.riskCategory] || 1.0);
+    const multiplier = riskMultiplier[customer.riskCategory as keyof typeof riskMultiplier] || 1.0;
+    priority *= multiplier;
 
     // Account value bonus (higher value = higher priority)
     if (customer.accountValue > 50000) { // > R$ 500
@@ -224,27 +210,10 @@ export class TemplateService {
       priority += 10;
     }
 
-    // Time sensitivity for card expiry
-    if (customer.riskCategory === 'expiring-card') {
-      const daysUntilExpiry = this.calculateDaysUntilExpiry(
-        customer.paymentMethod.expiryMonth,
-        customer.paymentMethod.expiryYear
-      );
-
-      if (daysUntilExpiry <= 3) {
-        priority += 15; // Very urgent
-      } else if (daysUntilExpiry <= 7) {
-        priority += 10; // Urgent
-      }
-    }
-
     return Math.min(100, Math.round(priority));
   }
 
-  public getScenarioFromRisk(riskCategory: string): 'cardExpiring' | 'paymentFailed' {
-    if (riskCategory === 'expiring-card') {
-      return 'cardExpiring';
-    }
+  public getScenarioFromRisk(riskCategory: string): 'paymentFailed' {
     return 'paymentFailed'; // Default for failed-payment, multiple-failures, etc.
   }
 }
