@@ -6,4 +6,4 @@ npx prisma migrate deploy || echo "Migration failed, continuing..."
 
 # Start the application
 echo "Starting application..."
-npm start
+node dist/server.js
