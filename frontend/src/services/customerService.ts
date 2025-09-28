@@ -2,7 +2,7 @@ import { Customer } from '../types/customer';
 
 class CustomerService {
   async getCustomers(): Promise<Customer[]> {
-    const response = await fetch('/api/customers');
+    const response = await fetch('https://hackthon-bemobi-1.onrender.com/api/customers');
     if (!response.ok) {
       throw new Error('Failed to fetch customers');
     }
@@ -10,7 +10,7 @@ class CustomerService {
   }
 
   async updateCustomerStatus(customerId: string, status: string): Promise<Customer> {
-    const response = await fetch(`/api/customers/${customerId}`,
+    const response = await fetch(`https://hackthon-bemobi-1.onrender.com/api/customers/${customerId}`,
     {
       method: 'PATCH',
       headers: {

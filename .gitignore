@@ -54,3 +54,4 @@ spec-kit-*.zip
 ./specs
 .specify
 .gemini
+.vercel

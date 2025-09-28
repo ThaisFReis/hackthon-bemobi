@@ -2,7 +2,7 @@ import { PaymentMethod } from '../types/paymentMethod';
 
 class PaymentService {
   async updatePaymentMethod(customerId: string, cardDetails: object): Promise<PaymentMethod> {
-    const response = await fetch('/api/payments/update-method', {
+    const response = await fetch('https://hackthon-bemobi-1.onrender.com/api/payments/update-method', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

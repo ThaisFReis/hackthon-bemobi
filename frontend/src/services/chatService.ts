@@ -4,7 +4,7 @@ class ChatService {
   private socket: WebSocket | null = null;
 
   connect(sessionId: string) {
-    this.socket = new WebSocket(`ws://localhost:3001/chat/${sessionId}`); // Assuming WebSocket server is on port 3001
+    this.socket = new WebSocket(`wss://hackthon-bemobi-1.onrender.com/chat/${sessionId}`);
 
     this.socket.onopen = () => {
       console.log('WebSocket connected');
