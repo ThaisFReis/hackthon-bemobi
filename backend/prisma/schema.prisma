@@ -1,0 +1,229 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum AccountStatus {
+  ACTIVE
+  AT_RISK
+  CHURNED
+  SUSPENDED
+}
+
+enum RiskCategory {
+  PAYMENT_FAILED
+  MULTIPLE_FAILURES
+  HIGH_VALUE
+  LOW_ENGAGEMENT
+}
+
+enum RiskSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum BillingCycle {
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
+enum PaymentStatusType {
+  SUCCESS
+  FAILED
+  PENDING
+  BLOCKED
+}
+
+enum FailureReason {
+  INSUFFICIENT_FUNDS
+  CARD_EXPIRED
+  CARD_DECLINED
+  INVALID_CARD
+  BANK_ERROR
+  UNKNOWN
+}
+
+enum ChatSessionStatus {
+  ACTIVE
+  COMPLETED
+  ABANDONED
+}
+
+enum MessageSender {
+  AI
+  CUSTOMER
+  SYSTEM
+}
+
+enum MessageType {
+  TEXT
+  AUDIO
+  SYSTEM
+  PAYMENT_LINK
+  DOCUMENT
+}
+
+enum InterventionOutcome {
+  SUCCESS
+  FAILED
+  NO_ANSWER
+  SCHEDULED
+}
+
+enum CardType {
+  VISA
+  MASTERCARD
+  AMEX
+  ELO
+  HIPERCARD
+}
+
+model Customer {
+  id                String        @id @default(cuid())
+  name              String        @db.VarChar(255)
+  email             String        @unique @db.VarChar(255)
+  phone             String        @db.VarChar(20)
+  serviceProvider   String        @db.VarChar(100)
+  serviceType       String        @db.VarChar(255)
+  accountValue      Decimal       @db.Decimal(10, 2)
+  riskCategory      RiskCategory
+  riskSeverity      RiskSeverity
+  accountStatus     AccountStatus @default(ACTIVE)
+  billingCycle      BillingCycle  @default(MONTHLY)
+  lastPaymentDate   DateTime?
+  nextBillingDate   DateTime
+  customerSince     DateTime
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  // Relacionamentos
+  paymentStatus     PaymentStatus?
+  paymentMethods    PaymentMethod[]
+  riskFactors       RiskFactor[]
+  chatSessions      ChatSession[]
+  interventions     Intervention[]
+
+  @@index([email])
+  @@index([accountStatus])
+  @@index([riskCategory, riskSeverity])
+  @@index([nextBillingDate])
+  @@map("customers")
+}
+
+model PaymentMethod {
+  id                String            @id @default(cuid())
+  customerId        String
+  // Store only payment gateway token/reference - never actual card details
+  paymentToken      String            @unique @db.VarChar(255) // Token from payment processor
+  cardType          CardType?
+  cardBrand         String?           @db.VarChar(50) // e.g., "Visa", "Mastercard"
+  status            PaymentStatusType @default(PENDING)
+  failureCount      Int               @default(0)
+  lastFailureDate   DateTime?
+  lastSuccessDate   DateTime?
+  isDefault         Boolean           @default(false)
+  // Store payment processor details instead of sensitive data
+  processorId       String?           @db.VarChar(100) // Payment gateway identifier
+  fingerprint       String?           @db.VarChar(255) // Card fingerprint for duplicate detection
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  customer          Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId])
+  @@index([status])
+  @@index([paymentToken])
+  @@map("payment_methods")
+}
+
+model PaymentStatus {
+  id                String        @id @default(cuid())
+  customerId        String        @unique
+  status            PaymentStatusType
+  failureCount      Int           @default(0)
+  lastFailureDate   DateTime?
+  lastSuccessDate   DateTime?
+  failureReason     FailureReason?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  customer          Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@map("payment_status")
+}
+
+model RiskFactor {
+  id          String   @id @default(cuid())
+  customerId  String
+  factor      String   @db.VarChar(100)
+  weight      Decimal  @db.Decimal(3, 2) @default(1.0)
+  createdAt   DateTime @default(now())
+
+  customer    Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@unique([customerId, factor])
+  @@index([customerId])
+  @@map("risk_factors")
+}
+
+model ChatSession {
+  id                String            @id @default(cuid())
+  customerId        String
+  customerName      String            @db.VarChar(255)
+  status            ChatSessionStatus @default(ACTIVE)
+  startTime         DateTime          @default(now())
+  endTime           DateTime?
+  paymentIssue      String?           @db.Text
+  outcome           String?           @db.Text
+
+  customer          Customer      @relation(fields: [customerId], references: [id])
+  messages          ChatMessage[]
+
+  @@index([customerId])
+  @@index([status])
+  @@index([startTime])
+  @@map("chat_sessions")
+}
+
+model ChatMessage {
+  id                String         @id @default(cuid())
+  chatSessionId     String
+  sender            MessageSender
+  content           String         @db.Text
+  messageType       MessageType    @default(TEXT)
+  timestamp         DateTime       @default(now())
+  metadata          Json?
+
+  chatSession       ChatSession @relation(fields: [chatSessionId], references: [id], onDelete: Cascade)
+
+  @@index([chatSessionId])
+  @@index([timestamp])
+  @@map("chat_messages")
+}
+
+model Intervention {
+  id                String              @id @default(cuid())
+  customerId        String
+  date              DateTime            @default(now())
+  outcome           InterventionOutcome
+  notes             String?             @db.Text
+  revenueRecovered  Decimal?            @db.Decimal(10, 2)
+  agentId           String?             @db.VarChar(100)
+  duration          Int?                // in minutes
+
+  customer          Customer @relation(fields: [customerId], references: [id])
+
+  @@index([customerId])
+  @@index([date])
+  @@index([outcome])
+  @@map("interventions")
+}

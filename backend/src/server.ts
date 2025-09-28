@@ -23,18 +23,52 @@ import chatRoutes from './api/chat';
 import customerRoutes from './api/customers';
 import queueRoutes from './api/queue';
 import { QueueService } from './services/queueService';
-import { AIChatService } from './services/aiChatService';
-import Customer from './models/customer';
-import * as fs from 'fs';
-import * as path from 'path';
+import { LangchainGeminiService } from './services/langchainGeminiService';
 
-// Initialize services
-const aiChatService = new AIChatService();
+// Initialize LangchainGeminiService
+let aiChatService: LangchainGeminiService;
+
+try {
+  console.log('=== AI Service Initialization ===');
+
+  // Check required API keys
+  const hasGemini = !!process.env.GEMINI_API_KEY;
+
+  console.log('API Keys status:');
+  console.log('- GEMINI_API_KEY:', hasGemini ? 'PRESENT' : 'MISSING');
+  console.log('- LANGCHAIN_API_KEY:', !!process.env.LANGCHAIN_API_KEY ? 'PRESENT (optional)' : 'MISSING (tracing disabled)');
+
+  if (!hasGemini) {
+    throw new Error('GEMINI_API_KEY is required for LangchainGeminiService. Please set this environment variable.');
+  }
+
+  console.log('Initializing LangchainGeminiService...');
+  aiChatService = new LangchainGeminiService();
+  console.log('✅ LangchainGeminiService initialized successfully');
+
+} catch (error) {
+  console.error('❌ Failed to initialize LangchainGeminiService:', error);
+  console.error('Please ensure GEMINI_API_KEY is set in your environment variables.');
+  process.exit(1);
+}
+
+// Initialize queue service
 const queueService = new QueueService(aiChatService);
 
 // Make services available to routes
 app.set('queueService', queueService);
 app.set('aiChatService', aiChatService);
+
+// Add debug endpoint to check AI service status
+app.get('/api/debug/ai-service', (req, res) => {
+  res.json({
+    service: 'LangchainGeminiService',
+    timestamp: new Date().toISOString(),
+    geminiModel: 'gemini-pro',
+    langsmithEnabled: !!process.env.LANGCHAIN_API_KEY,
+    queueService: queueService.getAIServiceInfo()
+  });
+});
 
 app.use('/api/chat', chatRoutes);
 app.use('/api/customers', customerRoutes);
@@ -73,40 +107,44 @@ io.on('connection', (socket) => {
   });
 });
 
-// Load customers from JSON file
-function loadCustomersFromJSON(): Customer[] {
-  try {
-    const dataPath = path.join(__dirname, '../data/mockCustomers.json');
-    const jsonData = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
-
-    const customers = jsonData.customers.map((customerData: any) => {
-      return new Customer(customerData);
-    });
-
-    console.log(`Loaded ${customers.length} customers from JSON file`);
-    return customers;
-  } catch (error) {
-    console.error('Error loading customers from JSON:', error);
-    return [];
-  }
-}
-
-// Initialize queue with customer data on startup
+// Initialize queue with customer data from database on startup
 const initializeQueue = async () => {
   try {
-    const customers = loadCustomersFromJSON();
-    await queueService.refreshQueue(customers);
-    const atRiskCustomers = customers.filter((c: any) => c.requiresIntervention());
-    console.log(`Queue initialized with ${atRiskCustomers.length} at-risk customers out of ${customers.length} total customers`);
+    console.log('=== Queue Initialization ===');
+    await queueService.refreshQueue(); // No parameters - will fetch from database
+    const queueStatus = queueService.getQueueStatus();
+    console.log(`✅ Queue initialized with ${queueStatus.queue.length} at-risk customers from database`);
+    console.log(`AI Service in use: ${queueService.getAIServiceInfo()}`);
   } catch (error) {
-    console.error('Failed to initialize queue:', error);
+    console.error('❌ Failed to initialize queue:', error);
   }
 };
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    services: {
+      ai: 'LangchainGeminiService',
+      queue: 'QueueService',
+      database: 'prisma',
+      gemini: 'active',
+      langsmith: !!process.env.LANGCHAIN_API_KEY ? 'enabled' : 'disabled'
+    }
+  });
+});
 
 // Start server and initialize queue
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, async () => {
-  console.log(`Server is running on port ${PORT}`);
+  console.log('===========================================');
+  console.log(`🚀 Server is running on port ${PORT}`);
+  console.log(`🤖 AI Service: LangchainGeminiService with Gemini Pro`);
+  console.log(`🔧 LangSmith: ${!!process.env.LANGCHAIN_API_KEY ? 'Enabled' : 'Disabled'}`);
+  console.log(`🔗 Health check: http://localhost:${PORT}/health`);
+  console.log(`🔗 AI debug: http://localhost:${PORT}/api/debug/ai-service`);
+  console.log('===========================================');
 
   // Initialize queue after a short delay to ensure server is ready
   setTimeout(initializeQueue, 2000);

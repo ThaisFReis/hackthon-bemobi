@@ -131,7 +131,7 @@ export class TemplateService {
   }
 
   public getSystemPrompt(serviceCategory: string): string {
-    const prompts = {
+    const prompts: { [key: string]: string } = {
       telecom: `Você é um especialista em retenção de clientes de operadora de telefonia/internet.
       Foque em manter a linha/internet ativa e evitar perda do número. Use linguagem informal e amigável.
       Enfatize a conveniência e a necessidade de manter a conectividade.`,
@@ -145,7 +145,7 @@ export class TemplateService {
       Enfatize a importância de manter os estudos em dia e o investimento no futuro.`
     };
 
-    return prompts[serviceCategory] || prompts.telecom;
+    return prompts[serviceCategory] || prompts['telecom'];
   }
 
   public shouldTriggerIntervention(customer: CustomerData): boolean {
@@ -191,7 +191,7 @@ export class TemplateService {
     const serviceCategory = this.getServiceCategory(customer.serviceProvider);
 
     // Base priority by service type
-    const servicePriority = {
+    const servicePriority: { [key: string]: number } = {
       utilities: 40,     // Essential services
       education: 30,     // High value, academic impact
       telecom: 20        // Important but not critical
@@ -200,7 +200,7 @@ export class TemplateService {
     priority += servicePriority[serviceCategory] || 20;
 
     // Risk category multiplier
-    const riskMultiplier = {
+    const riskMultiplier: { [key: string]: number } = {
       'multiple-failures': 2.0,
       'failed-payment': 1.5,
       'expiring-card': 1.2
