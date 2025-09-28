@@ -27,7 +27,7 @@ services:
       - key: JWT_SECRET
         generateValue: true
       - key: LOG_LEVEL
-        value: info
+        value: "info"
       - key: LOG_FORMAT
         value: combined
       - key: DEMO_MODE
